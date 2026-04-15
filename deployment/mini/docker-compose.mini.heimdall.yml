@@ -16,7 +16,7 @@ services:
     volumes:
       - ./../../static/config/heimdall/mini:/app/static/config
       - ./../../static/specs/heimdall:/app/static/specs
-      - ./../../static/vault/heimdall:/app/vault
+      - ./../../vault/heimdall:/app/vault
     depends_on:
       - heimdall-db
     env_file:
@@ -35,7 +35,7 @@ services:
     volumes:
       - ./../../static/config/heimdall/mini:/app/static/config
       - ./../../static/specs/heimdall:/app/static/specs
-      - ./../../static/vault/heimdall:/app/vault
+      - ./../../vault/heimdall:/app/vault
     depends_on:
       heimdall-setup:
         condition: service_completed_successfully

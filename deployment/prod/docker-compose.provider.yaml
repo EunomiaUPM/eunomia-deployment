@@ -9,12 +9,13 @@ services:
     cap_add:
       - IPC_LOCK
     volumes:
-      - ./../../static/vault/provider:/vault
+      - ./../../vault/provider/config:/vault/config
+      - ./../../vault/provider/data:/vault/file
     environment:
       VAULT_CACERT: /vault/config/root-ca.pem
       VAULT_LOCAL_CONFIG: >
         {
-          "storage": { "file": { "path": "/vault/data" } },
+          "storage": { "file": { "path": "/vault/file" } },
           "listener": [{
             "tcp": {
               "address": "0.0.0.0:8200",
@@ -58,10 +59,10 @@ services:
     image: rmenendez8/rainbow:v1.2.6
     command: ["setup", "-e", "/app/static/environment/config/prod/core.provider.yaml"]
     volumes:
-      - ./../../static/environment/config/prod/core.provider.yaml:/app/static/environment/config/prod/core.provider.yaml
-      - ./../../static/specs:/app/static/specs
+      - ./../../static/config/provider/prod:/app/static/config
+      - ./../../static/specs/agent:/app/static/specs
       - ./../../static/policy_templates:/app/static/policy_templates
-      - ./../../static/vault/provider:/app/vault
+      - ./../../vault/provider:/app/vault
     depends_on:
       - provider-db
       - provider-vault
@@ -82,10 +83,10 @@ services:
     ports:
       - "1200:1200"
     volumes:
-      - ./../../static/environment/config/prod/core.provider.yaml:/app/static/environment/config/prod/core.provider.yaml
-      - ./../../static/specs:/app/static/specs
+      - ./../../static/config/provider/prod:/app/static/config
+      - ./../../static/specs/agent:/app/static/specs
       - ./../../static/policy_templates:/app/static/policy_templates
-      - ./../../static/vault/provider:/app/vault
+      - ./../../vault/provider:/app/vault
     depends_on:
       provider-setup:
         condition: service_completed_successfully

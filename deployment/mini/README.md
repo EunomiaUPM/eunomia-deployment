@@ -50,6 +50,6 @@ The credentials for the wallet follow a standard pattern: `mini_[role]@test.com`
 
 > [!NOTE]
 > You can find credentials examples and configuration details in the repository at:
-> `/static/vault/[role]/secrets/wallet.json.example`
+> `/vault/[role]/secrets/wallet.json.example`
 
 

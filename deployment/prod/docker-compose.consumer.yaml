@@ -9,12 +9,13 @@ services:
     cap_add:
       - IPC_LOCK
     volumes:
-      - ./../../static/vault/consumer:/vault
+      - ./../../vault/consumer/config:/vault/config
+      - ./../../vault/consumer/data:/vault/file
     environment:
       VAULT_CACERT: /vault/config/root-ca.pem
       VAULT_LOCAL_CONFIG: >
         {
-          "storage": { "file": { "path": "/vault/data" } },
+          "storage": { "file": { "path": "/vault/file" } },
           "listener": [{
             "tcp": {
               "address": "0.0.0.0:8200",
@@ -35,7 +36,7 @@ services:
     image: "postgres"
     restart: always
     env_file:
-      - ./../../static/environment/envs/consumer.db.env
+      - ./../../static/envs/consumer.db.env
     ports:
       - "1300:5432"
 
@@ -56,18 +57,18 @@ services:
   consumer-setup:
     container_name: consumer-setup
     image: rmenendez8/rainbow:v1.2.6
-    command: ["setup", "-e", "/app/static/environment/config/prod/core.consumer.yaml"]
+    command: ["setup", "-e", "/app/static/config/core.consumer.yaml"]
     volumes:
-      - ./../../static/environment/config/prod/core.consumer.yaml:/app/static/environment/config/prod/core.consumer.yaml
-      - ./../../static/specs:/app/static/specs
+      - ./../../static/config/consumer/prod:/app/static/config
+      - ./../../static/specs/agent:/app/static/specs
       - ./../../static/policy_templates:/app/static/policy_templates
-      - ./../../static/vault/consumer:/app/vault
+      - ./../../vault/consumer:/app/vault
     depends_on:
       - consumer-db
       - consumer-vault
       - consumer-redis
     env_file:
-      - ./../../static/environment/envs/core.consumer.env
+      - ./../../static/envs/prod/consumer.env
     restart: "no"
 
   # =========================
@@ -78,14 +79,14 @@ services:
     build:
       context: ../..
       dockerfile: deployment/Dockerfile
-    command: ["start", "-e", "/app/static/environment/config/prod/core.consumer.yaml"]
+    command: ["start", "-e", "/app/static/config/core.consumer.yaml"]
     ports:
       - "1100:1100"
     volumes:
-      - ./../../static/environment/config/prod/core.consumer.yaml:/app/static/environment/config/prod/core.consumer.yaml
-      - ./../../static/specs:/app/static/specs
+      - ./../../static/config/consumer/prod:/app/static/config
+      - ./../../static/specs/agent:/app/static/specs
       - ./../../static/policy_templates:/app/static/policy_templates
-      - ./../../static/vault/consumer:/app/vault
+      - ./../../vault/consumer:/app/vault
     depends_on:
       consumer-setup:
         condition: service_completed_successfully
@@ -96,6 +97,6 @@ services:
       consumer-redis:
         condition: service_started
     env_file:
-      - ./../../static/environment/envs/core.consumer.env
+      - ./../../static/envs/core.consumer.env
     environment:
       RUST_BACKTRACE: full

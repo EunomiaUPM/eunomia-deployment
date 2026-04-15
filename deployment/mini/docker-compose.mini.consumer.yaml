@@ -32,7 +32,7 @@ services:
       - ./../../static/config/consumer/mini:/app/static/config
       - ./../../static/specs/agent:/app/static/specs
       - ./../../static/policy_templates:/app/static/policy_templates
-      - ./../../static/vault/consumer:/app/vault
+      - ./../../vault/consumer:/app/vault
     depends_on:
       - consumer-db
       - consumer-redis
@@ -53,7 +53,7 @@ services:
       - ./../../static/config/consumer/mini:/app/static/config
       - ./../../static/specs/agent:/app/static/specs
       - ./../../static/policy_templates:/app/static/policy_templates
-      - ./../../static/vault/consumer:/app/vault
+      - ./../../vault/consumer:/app/vault
     depends_on:
       consumer-setup:
         condition: service_completed_successfully
