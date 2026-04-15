@@ -3,8 +3,8 @@
 # ==========================
 http_host: &http_host
   protocol: 'https'
-  url: 'dev-dataspaces.dit.upm.es'
-  port: '1200'
+  url: 'your_domain'
+  port: null
   internal_port: null
 
 hosts_default: &hosts_default
@@ -86,11 +86,11 @@ ssi_auth:
     vcs_requested: [DataspaceParticipant]
   gaia_config: null
   did_config:
-    did: 'did:jwk:...'
-    type: Jwk
-    did_web_options: null
-    #    domain: "CHANGE_ME"
-    #    path: null
+    did: 'did:web:your_domain'
+    type: Web
+    did_web_options:
+      domain: 'your_domain'
+      path: null
 
 # ==========================
 # CONTRACTS
@@ -116,7 +116,7 @@ transfer:
 # ==========================
 gateway:
   common: *common_config
-  is_production: false
+  is_production: true
   transfer: *min_known_config
   contracts: *min_known_config
   catalog: *min_known_config

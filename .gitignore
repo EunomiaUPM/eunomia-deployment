@@ -1,7 +1,7 @@
-static/vault/**
-!static/vault/**/
-!static/vault/**/*.example
-!static/vault/**/*.gitkeep
+vault/**
+!vault/**/
+!vault/**/*.example
+!vault/**/*.gitkeep
 
 cert.json.example
 public_key.json.example
