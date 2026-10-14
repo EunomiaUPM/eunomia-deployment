@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-source "$(dirname "$0")/lib.sh"
+source "$(dirname "$0")/../lib/lib.sh"
 
 # CONSUMER_URL   — URL del consumer (por defecto: lib.sh)
 # PROVIDER_URL   — URL del provider (por defecto: lib.sh)

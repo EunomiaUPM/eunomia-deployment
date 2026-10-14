@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 SCRIPT_DIR="$(dirname "$0")"
-source "$SCRIPT_DIR/lib.sh"
+source "$SCRIPT_DIR/../lib/lib.sh"
 
 echo -e "\n======================================"
 echo "         FULL ONBOARDING"

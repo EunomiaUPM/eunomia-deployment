@@ -5,17 +5,17 @@ This folder contains the "mini" deployment of the Eunomia framework (Heimdall, a
 ## Requirements
 - Docker
 - Docker Compose 2.24 or newer (the Keycloak mode uses `!reset`)
-- PowerShell, to use `run-mini.ps1`
+- PowerShell, to use `scripts/run/run-mini.ps1`
 
 ## Deploying
 
-The easiest way is the `run-mini.ps1` script in this folder. It creates the shared `ds-mini` Docker network if it is missing, then brings up Heimdall, the provider and the consumer (in that order) and waits until each one answers:
+The easiest way is the `scripts/run/run-mini.ps1` script (it works from any directory). It creates the shared `ds-mini` Docker network if it is missing, then brings up Heimdall, the provider and the consumer (in that order) and waits until each one answers:
 
 ```powershell
-./run-mini.ps1                      # everything, static identity (default)
-./run-mini.ps1 -Target provider     # heimdall | provider | consumer | all
-./run-mini.ps1 -Auth keycloak       # everything behind Keycloak (see below)
-./run-mini.ps1 -Down                # bring everything down
+./scripts/run/run-mini.ps1                      # everything, static identity (default)
+./scripts/run/run-mini.ps1 -Target provider     # heimdall | provider | consumer | all
+./scripts/run/run-mini.ps1 -Auth keycloak       # everything behind Keycloak (see below)
+./scripts/run/run-mini.ps1 -Down                # bring everything down
 ```
 
 To do it by hand, create the network once and run `docker compose up -d` against each file:

@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-source "$(dirname "$0")/lib.sh"
+source "$(dirname "$0")/../lib/lib.sh"
 
 # PARTICIPANT_URL  — URL del participante a registrar (requerido)
 # PARTICIPANT_SLUG — nombre identificativo para logs (por defecto: "participant")

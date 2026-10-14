@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-source "$(dirname "$0")/lib.sh"
+source "$(dirname "$0")/../lib/lib.sh"
 
 invoke_curl_json() {
     local method="${1:-GET}"
