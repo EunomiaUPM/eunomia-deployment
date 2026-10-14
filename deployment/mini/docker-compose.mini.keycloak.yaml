@@ -1,0 +1,35 @@
+name: mini-keycloak
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.4
+    container_name: keycloak
+    restart: unless-stopped
+    env_file:
+      - ./../../static/envs/keycloak/mini.env.example
+    environment:
+      KC_HEALTH_ENABLED: "true"
+      KC_HOSTNAME: http://keycloak.localhost:8080
+    command: ["start-dev", "--import-realm"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./../../static/config/keycloak/mini:/opt/keycloak/data/import:ro
+      - ./../../static/react/keycloak-theme/eunomia:/opt/keycloak/themes/eunomia:ro
+    networks:
+      ds-mini:
+        aliases:
+          - keycloak.localhost
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+networks:
+  ds-mini:
+    name: ds-mini
+    external: true

@@ -1,0 +1,180 @@
+{
+  "realm": "consumer",
+  "displayName": "Consumer",
+  "enabled": true,
+  "loginTheme": "eunomia",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": false,
+  "accessTokenLifespan": 1800,
+  "ssoSessionIdleTimeout": 36000,
+  "ssoSessionMaxLifespan": 72000,
+  "groups": [
+    {
+      "name": "admin",
+      "path": "/admin",
+      "subGroups": [
+        {
+          "name": "org",
+          "path": "/admin/org",
+          "subGroups": [
+            {
+              "name": "team",
+              "path": "/admin/org/team",
+              "subGroups": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "john.doe",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "john.doe@example.org",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "john.doe",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/admin"
+      ]
+    },
+    {
+      "username": "jane.doe",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Jane",
+      "lastName": "Doe",
+      "email": "jane.doe@example.org",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "jane.doe",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/admin/org"
+      ]
+    },
+    {
+      "username": "richard.roe",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Richard",
+      "lastName": "Roe",
+      "email": "richard.roe@example.org",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "richard.roe",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/admin/org/team"
+      ]
+    },
+    {
+      "username": "service-account-cli",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "cli@example.org",
+      "serviceAccountClientId": "cli",
+      "groups": [
+        "/admin"
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "gateway",
+      "name": "oauth2-proxy",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "consumer-gateway-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "implicitFlowEnabled": false,
+      "redirectUris": [
+        "http://consumer.localhost:8082/oauth2/callback"
+      ],
+      "webOrigins": [
+        "http://consumer.localhost:8082"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://consumer.localhost:8082/*",
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "role",
+            "full.path": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "cli",
+      "name": "scripts",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "consumer-cli-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "implicitFlowEnabled": false,
+      "protocolMappers": [
+        {
+          "name": "role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "role",
+            "full.path": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "gateway-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "gateway",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,55 +1,69 @@
 # Mini Deployment
 
-This folder contains the "mini" deployment approach for the Rainbow framework, using Docker Compose files. 
+This folder contains the "mini" deployment of the Eunomia framework (Heimdall, a provider and a consumer) using Docker Compose files. Each component brings its own database and its own **Fafnir** wallet, so nothing else has to be started first.
 
 ## Requirements
 - Docker
-- Docker Compose
-
-## Prerequisites: Walt.id Wallet
-Before lifting any of the local containers, you **MUST** start the walt.id identity wallet infrastructure first. This is a critical requirement.
-
-```bash
-git clone https://github.com/walt-id/waltid-identity.git
-cd waltid-identity/docker-compose 
-docker compose up -d
-```
-
-> **Important:** Ensure the wallet services are completely functional before bringing up any other component.
+- Docker Compose 2.24 or newer (the Keycloak mode uses `!reset`)
+- PowerShell, to use `run-mini.ps1`
 
 ## Deploying
 
-To deploy the services, run `docker compose up -d` against each of the `docker-compose.*.yaml` files located in this directory.
+The easiest way is the `run-mini.ps1` script in this folder. It creates the shared `ds-mini` Docker network if it is missing, then brings up Heimdall, the provider and the consumer (in that order) and waits until each one answers:
 
-For example:
+```powershell
+./run-mini.ps1                      # everything, static identity (default)
+./run-mini.ps1 -Target provider     # heimdall | provider | consumer | all
+./run-mini.ps1 -Auth keycloak       # everything behind Keycloak (see below)
+./run-mini.ps1 -Down                # bring everything down
+```
+
+To do it by hand, create the network once and run `docker compose up -d` against each file:
+
 ```bash
-docker compose -f docker-compose.mini.heimdall.yml up -d
+docker network create ds-mini
+docker compose -f docker-compose.mini.heimdall.yaml up -d
 docker compose -f docker-compose.mini.provider.yaml up -d
 docker compose -f docker-compose.mini.consumer.yaml up -d
 ```
 
-## Entity URLs (Local Access)
+## Entity URLs (default mode)
 
-Once deployed, you can access the different entities at the following URLs:
+In the default mode the components talk to each other through `host.docker.internal` and publish their own ports:
 
-- **Wallet**: [http://localhost:7104/login](http://localhost:7104/login)
-- **Heimdall**: [http://localhost:1500/admin/home](http://localhost:1500/admin/home)
-- **Consumer**: [http://localhost:1100/admin/login](http://localhost:1100/admin/login)
-- **Provider**: [http://localhost:1200/admin/login](http://localhost:1200/admin/login)
+- **Heimdall**: [http://localhost:1500/admin/](http://localhost:1500/admin/)
+- **Provider**: [http://localhost:1200/admin/](http://localhost:1200/admin/)
+- **Consumer**: [http://localhost:1100/admin/](http://localhost:1100/admin/)
+
+`/` redirects to the console in all of them.
 
 ## Credentials
 
-### Consumer & Provider web interface
-- **User**: `eunomia`
-- **Password**: `eunomia`
+In the default mode there is no sign-in: every request acts as a fixed system user with the root role (`static` identity, used when the config has no `oauth` block). It is meant for local work only; the components refuse to start with it when `is_prod` is set. For the users of the Keycloak mode, see [Keycloak mode](#keycloak-mode).
 
-### Wallet
-The credentials for the wallet follow a standard pattern: `mini_[role]@test.com` / `mini_[role]`.
-- **Heimdall**: `mini_heimdal@test.com` / `mini_heimdall`
-- **Other roles**: Replace `[role]` accordingly.
+The wallets are internal (no published port). Their example secrets live in `/vault/[role]/secrets/`.
 
-> [!NOTE]
-> You can find credentials examples and configuration details in the repository at:
-> `/vault/[role]/secrets/wallet.json.example`
+## Keycloak mode
 
+With `-Auth keycloak` every component sits behind its own oauth2-proxy and a shared Keycloak handles the sign-in (one realm per component). The components no longer publish their own port: the proxy is the only way in. Protocol routes (DSP, GNAP, OID4VCI/OID4VP, well-known) pass without a session; everything else needs one.
 
+Every service gets a `*.localhost` name, valid both from the browser (browsers resolve `*.localhost` to 127.0.0.1) and from the containers (aliases on the `ds-mini` network):
+
+| Component | URL |
+|---|---|
+| Heimdall | [http://authority.localhost:8083/admin/](http://authority.localhost:8083/admin/) |
+| Provider | [http://provider.localhost:8081/admin/](http://provider.localhost:8081/admin/) |
+| Consumer | [http://consumer.localhost:8082/admin/](http://consumer.localhost:8082/admin/) |
+| Keycloak | [http://keycloak.localhost:8080](http://keycloak.localhost:8080) (admin console: `admin` / `admin`) |
+
+Users (same in the three realms; the password is the user name):
+
+| User | Role |
+|---|---|
+| `john.doe` | `/admin` (root) |
+| `jane.doe` | `/admin/org` |
+| `richard.roe` | `/admin/org/team` |
+
+Switching between `static` and `keycloak` needs a `-Down` first: each component stores its own URL and DID, which differ between modes. Keycloak keeps no data, so every time its container is recreated it imports the default realms again (`static/config/keycloak/mini/`).
+
+The Keycloak mode needs agent and Heimdall images with `oauth: keycloak` support and with `did:web` resolved over http for `*.localhost`.

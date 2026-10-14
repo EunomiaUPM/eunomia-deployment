@@ -1,0 +1,52 @@
+services:
+  heimdall-setup:
+    command:
+      - setup
+      - --env-file
+      - /app/static/config/mini_eco_authority.keycloak.yaml
+
+  heimdall:
+    command:
+      - start
+      - --env-file
+      - /app/static/config/mini_eco_authority.keycloak.yaml
+    ports: !reset []
+
+  heimdall-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.4
+    container_name: heimdall-proxy
+    restart: unless-stopped
+    env_file:
+      - ./../../static/envs/heimdall/proxy.mini.env.example
+    volumes:
+      - ./../../static/react/proxy-templates-mini:/templates:ro
+    ports:
+      - "8083:8083"
+    networks:
+      default:
+      ds-mini:
+        aliases:
+          - authority.localhost
+    command:
+      - --provider=keycloak-oidc
+      - --oidc-issuer-url=http://keycloak.localhost:8080/realms/authority
+      - --redirect-url=http://authority.localhost:8083/oauth2/callback
+      - --whitelist-domain=authority.localhost:8083
+      - --backend-logout-url=http://keycloak.localhost:8080/realms/authority/protocol/openid-connect/logout?id_token_hint={id_token}
+      - --http-address=0.0.0.0:8083
+      - --upstream=http://heimdall:1500/
+      - --email-domain=*
+      - --code-challenge-method=S256
+      - --pass-user-headers=true
+      - --pass-authorization-header=true
+      - --skip-provider-button=false
+      - --custom-templates-dir=/templates
+      - --provider-display-name=Authority
+      - --skip-jwt-bearer-tokens=true
+      - --cookie-secure=false
+      - '--api-route=^/admin/api/'
+      - '--api-route=^/api/'
+      - '--skip-auth-route=^/\.well-known/(did\.json|openid-credential-issuer|oauth-authorization-server|federated-catalog)$$'
+      - '--skip-auth-route=^/api/v1/gate/(access|continue/[^/.][^/]*)$$'
+      - '--skip-auth-route=^/api/v1/issuer/(credentialOffer|token|credential)$$'
+      - '--skip-auth-route=^/api/v1/verifier/(pd|verify)/[^/.][^/]*$$'

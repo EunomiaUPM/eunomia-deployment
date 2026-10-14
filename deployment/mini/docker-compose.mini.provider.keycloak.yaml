@@ -1,0 +1,50 @@
+services:
+  provider-setup:
+    command: ["setup", "-e", "/app/static/config/mini.provider.keycloak.yaml"]
+
+  provider:
+    command: ["start", "-e", "/app/static/config/mini.provider.keycloak.yaml"]
+    ports: !reset []
+
+  provider-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.4
+    container_name: provider-proxy
+    restart: unless-stopped
+    env_file:
+      - ./../../static/envs/provider/proxy.mini.env.example
+    volumes:
+      - ./../../static/react/proxy-templates-mini:/templates:ro
+    ports:
+      - "8081:8081"
+    networks:
+      default:
+      ds-mini:
+        aliases:
+          - provider.localhost
+    command:
+      - --provider=keycloak-oidc
+      - --oidc-issuer-url=http://keycloak.localhost:8080/realms/provider
+      - --redirect-url=http://provider.localhost:8081/oauth2/callback
+      - --whitelist-domain=provider.localhost:8081
+      - --backend-logout-url=http://keycloak.localhost:8080/realms/provider/protocol/openid-connect/logout?id_token_hint={id_token}
+      - --http-address=0.0.0.0:8081
+      - --upstream=http://provider:1200/
+      - --email-domain=*
+      - --code-challenge-method=S256
+      - --pass-user-headers=true
+      - --pass-authorization-header=true
+      - --skip-provider-button=false
+      - --custom-templates-dir=/templates
+      - --provider-display-name=Provider
+      - --skip-jwt-bearer-tokens=true
+      - --cookie-secure=false
+      - '--api-route=^/admin/api/'
+      - '--api-route=^/api/'
+      - '--skip-auth-route=^/\.well-known/(did\.json|dspace-version(/[^/.][^/]*)?|openid-configuration)$$'
+      - '--skip-auth-route=^/api/v1/gate/(access|continue/[^/.][^/]*|token/[A-Za-z0-9_-]{43})$$'
+      - '--skip-auth-route=^/api/v1/verifier/(pd|verify)/[^/.][^/]*$$'
+      - '--skip-auth-route=^/api/v1/(vc-request|peer-connection)/callback/[^/.][^/]*$$'
+      - '--skip-auth-route=^/dsp/current/catalog/(request|datasets/[^/.][^/]*)$$'
+      - '--skip-auth-route=^/dsp/current/negotiations/(request|offers|[^/.][^/]*(/(offers|request|events|agreement|agreement/verification|termination))?)$$'
+      - '--skip-auth-route=^/dsp/current/transfers/(request|[^/.][^/]*(/(completion|start|suspension|termination))?)$$'
+      - '--skip-auth-route=^/dataplane/proxy/'

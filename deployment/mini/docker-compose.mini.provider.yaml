@@ -118,3 +118,11 @@ services:
       RUST_BACKTRACE: full
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - ds-mini
+
+networks:
+  ds-mini:
+    name: ds-mini
+    external: true

@@ -26,15 +26,15 @@ There are two main ways to deploy this environment:
 
 Depending on the environment, the Decentralized Identifier (DID) method changes. While **GAIA-X officially only supports `did:web`**, Eunomia allows flexibility for local testing:
 
-- **Mini Deployment (Local)**: Uses **`did:jwk`**. Since `did:web` requires a public domain and resolving a `did.json` file, it is not suitable for local-only environments.
-- **Prod Deployment**: Supports both, but **`did:web`** should be used to remain compliant with GAIA-X standards.
+- **Mini Deployment (Local)**: Uses **`did:web`** over plain http. The `did.json` is resolved over http only for local hosts (`localhost`, `127.0.0.1`, `host.docker.internal` and any `*.localhost` name); any other domain is resolved over https. In the default mode the DIDs live on `host.docker.internal`; in the Keycloak mode, on each component's `*.localhost` name.
+- **Prod Deployment**: Uses **`did:web`** on a real domain over https, as GAIA-X requires.
 
 > [!TIP]
-> Heimdall is specifically designed to work as a **Clearing House using `did:jwk`** in local/mini mode, allowing you to test the full compliance flow without needing complex DNS or web server setups.
+> `did:jwk` is still supported (`type: Jwk` in the `did_config` block) for setups where no `did.json` can be served.
 
 ## **External Dependencies**
 
-This project depends on the **public walt.id wallet API** for credential management. Mini deployments use a local walt.id stack; production deployments point to the public hosted service. See the specific deployment guides for details.
+Each component needs a wallet for its credentials. Mini deployments run a local **Fafnir** wallet per component (Heimdall, provider and consumer), started by the same compose files; production deployments point to the **public walt.id wallet API**. See the specific deployment guides for details.
 
 ## **GAIA-X Compliance**
 

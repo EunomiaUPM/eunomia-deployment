@@ -1,0 +1,67 @@
+# ==========================
+# COMMON ANCHORS
+# ==========================
+http_host: &http_host
+  protocol: 'http'
+  url: 'authority.localhost'
+  port: '8083'
+  internal_port: '1500'
+
+# ==========================
+# CONFIG
+# ==========================
+
+hosts_config:
+  http: *http_host
+  grpc: null
+  graphql: null
+
+connection_config:
+  is_prod: false
+  is_vault_real: false
+  has_tls_proxy: false
+
+oauth:
+  provider: keycloak
+
+db_config:
+  db_type: Postgres
+  url: 'heimdall-db'
+  port: '5432'
+
+wallet_config:
+  wallet: Fafnir
+  api:
+    http:
+      protocol: 'http'
+      url: 'fafnir-wallet'
+      port: '7001'
+    grpc: null
+    graphql: null
+
+#did_config:
+#  type: Jwk
+
+did_config:
+  type: Web
+  domain: 'authority.localhost'
+  path:
+  port: '8083'
+
+role: EcoAuthority
+
+api_config:
+  version: 'v1'
+  openapi_path: '/app/static/specs/openapi/openapi.json'
+
+issue_config:
+  clh_config:
+    label_level: 'SC'
+    engine_version: '2.11.0'
+    rules_version: 'CD25.10'
+    validated_criteria: 'https://docs.gaia-x.eu/policy-rules-committee/compliance-document/25.10/criteria_participant/#PA1.1'
+
+verify_req_config:
+  is_cert_allowed: true
+  auto_approve_cert: true
+  vcs_requested: ['gx:VatId', 'gx:LegalPerson', 'gx:TermsAndConditions']
