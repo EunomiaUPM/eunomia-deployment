@@ -109,13 +109,13 @@
       "serviceAccountsEnabled": false,
       "implicitFlowEnabled": false,
       "redirectUris": [
-        "http://consumer.localhost:8082/oauth2/callback"
+        "http://consumer.localhost/oauth2/callback"
       ],
       "webOrigins": [
-        "http://consumer.localhost:8082"
+        "http://consumer.localhost"
       ],
       "attributes": {
-        "post.logout.redirect.uris": "http://consumer.localhost:8082/*",
+        "post.logout.redirect.uris": "http://consumer.localhost/*",
         "pkce.code.challenge.method": "S256"
       },
       "protocolMappers": [

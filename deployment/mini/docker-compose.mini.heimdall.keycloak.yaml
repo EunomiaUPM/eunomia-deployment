@@ -20,20 +20,17 @@ services:
       - ./../../static/envs/heimdall/proxy.mini.env.example
     volumes:
       - ./../../static/react/proxy-templates-mini:/templates:ro
-    ports:
-      - "8083:8083"
     networks:
-      default:
-      ds-mini:
-        aliases:
-          - authority.localhost
+      - default
+      - ds-mini
     command:
       - --provider=keycloak-oidc
-      - --oidc-issuer-url=http://keycloak.localhost:8080/realms/authority
-      - --redirect-url=http://authority.localhost:8083/oauth2/callback
-      - --whitelist-domain=authority.localhost:8083
-      - --backend-logout-url=http://keycloak.localhost:8080/realms/authority/protocol/openid-connect/logout?id_token_hint={id_token}
-      - --http-address=0.0.0.0:8083
+      - --oidc-issuer-url=http://keycloak.localhost/realms/authority
+      - --redirect-url=http://authority.localhost/oauth2/callback
+      - --whitelist-domain=authority.localhost
+      - --backend-logout-url=http://keycloak.localhost/realms/authority/protocol/openid-connect/logout?id_token_hint={id_token}
+      - --http-address=0.0.0.0:4180
+      - --reverse-proxy=true
       - --upstream=http://heimdall:1500/
       - --email-domain=*
       - --code-challenge-method=S256

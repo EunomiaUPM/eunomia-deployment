@@ -1,0 +1,20 @@
+{
+	auto_https off
+	admin off
+}
+
+http://keycloak.localhost {
+	reverse_proxy keycloak:8080
+}
+
+http://authority.localhost {
+	reverse_proxy heimdall-proxy:4180
+}
+
+http://provider.localhost {
+	reverse_proxy provider-proxy:4180
+}
+
+http://consumer.localhost {
+	reverse_proxy consumer-proxy:4180
+}

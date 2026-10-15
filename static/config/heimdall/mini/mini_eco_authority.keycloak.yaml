@@ -4,7 +4,7 @@
 http_host: &http_host
   protocol: 'http'
   url: 'authority.localhost'
-  port: '8083'
+  port: null
   internal_port: '1500'
 
 # ==========================
@@ -46,7 +46,7 @@ did_config:
   type: Web
   domain: 'authority.localhost'
   path:
-  port: '8083'
+  port:
 
 role: EcoAuthority
 

@@ -109,13 +109,13 @@
       "serviceAccountsEnabled": false,
       "implicitFlowEnabled": false,
       "redirectUris": [
-        "http://authority.localhost:8083/oauth2/callback"
+        "http://authority.localhost/oauth2/callback"
       ],
       "webOrigins": [
-        "http://authority.localhost:8083"
+        "http://authority.localhost"
       ],
       "attributes": {
-        "post.logout.redirect.uris": "http://authority.localhost:8083/*",
+        "post.logout.redirect.uris": "http://authority.localhost/*",
         "pkce.code.challenge.method": "S256"
       },
       "protocolMappers": [

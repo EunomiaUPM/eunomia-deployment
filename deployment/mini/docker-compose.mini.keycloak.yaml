@@ -1,6 +1,22 @@
 name: mini-keycloak
 
 services:
+  caddy:
+    image: caddy:2.8.4
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./../../static/config/caddy/mini/Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      ds-mini:
+        aliases:
+          - keycloak.localhost
+          - authority.localhost
+          - provider.localhost
+          - consumer.localhost
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.4
     container_name: keycloak
@@ -9,17 +25,14 @@ services:
       - ./../../static/envs/keycloak/mini.env.example
     environment:
       KC_HEALTH_ENABLED: "true"
-      KC_HOSTNAME: http://keycloak.localhost:8080
+      KC_HOSTNAME: http://keycloak.localhost
+      KC_PROXY_HEADERS: xforwarded
     command: ["start-dev", "--import-realm"]
-    ports:
-      - "8080:8080"
     volumes:
       - ./../../static/config/keycloak/mini:/opt/keycloak/data/import:ro
       - ./../../static/react/keycloak-theme/eunomia:/opt/keycloak/themes/eunomia:ro
     networks:
-      ds-mini:
-        aliases:
-          - keycloak.localhost
+      - ds-mini
     healthcheck:
       test:
         - "CMD-SHELL"

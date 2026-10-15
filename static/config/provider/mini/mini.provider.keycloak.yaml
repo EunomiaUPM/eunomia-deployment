@@ -4,7 +4,7 @@
 min_http: &min_http_host
   protocol: 'http'
   url: 'provider.localhost'
-  port: '8081'
+  port: null
   internal_port: '1200'
 
 min_hosts: &min_hosts
@@ -34,7 +34,7 @@ common_config: &common_config
     http:
       protocol: 'http'
       url: 'provider.localhost'
-      port: '8081'
+      port: null
       internal_port: '1200'
     grpc: null
     graphql: null
@@ -98,7 +98,7 @@ ssi_auth:
     type: Web
     domain: 'provider.localhost'
     path:
-    port: '8081'
+    port:
   gaia_config:
     legal_person:
       name: 'EunomiaProvider'

@@ -45,16 +45,23 @@ The wallets are internal (no published port). Their example secrets live in `/va
 
 ## Keycloak mode
 
-With `-Auth keycloak` every component sits behind its own oauth2-proxy and a shared Keycloak handles the sign-in (one realm per component). The components no longer publish their own port: the proxy is the only way in. Protocol routes (DSP, GNAP, OID4VCI/OID4VP, well-known) pass without a session; everything else needs one.
+With `-Auth keycloak` every component sits behind its own oauth2-proxy and a shared Keycloak handles the sign-in (one realm per component). Protocol routes (DSP, GNAP, OID4VCI/OID4VP, well-known) pass without a session; everything else needs one.
 
-Every service gets a `*.localhost` name, valid both from the browser (browsers resolve `*.localhost` to 127.0.0.1) and from the containers (aliases on the `ds-mini` network):
+A Caddy edge proxy is the only published port (**80**, which must be free). It routes each request by its host name to the right oauth2-proxy (or to Keycloak); oauth2-proxy then handles the sign-in and forwards to the component. Neither the components nor the proxies publish ports.
+
+```
+browser / containers ──► Caddy :80 ──► <component>-proxy (oauth2-proxy) ──► component
+                                  └──► keycloak
+```
+
+Every service gets a `*.localhost` name without port, valid both from the browser (browsers resolve `*.localhost` to 127.0.0.1) and from the containers (aliases of Caddy on the `ds-mini` network), so the containers also go through Caddy and the proxies, as they would on the internet:
 
 | Component | URL |
 |---|---|
-| Heimdall | [http://authority.localhost:8083/admin/](http://authority.localhost:8083/admin/) |
-| Provider | [http://provider.localhost:8081/admin/](http://provider.localhost:8081/admin/) |
-| Consumer | [http://consumer.localhost:8082/admin/](http://consumer.localhost:8082/admin/) |
-| Keycloak | [http://keycloak.localhost:8080](http://keycloak.localhost:8080) (admin console: `admin` / `admin`) |
+| Heimdall | [http://authority.localhost/admin/](http://authority.localhost/admin/) |
+| Provider | [http://provider.localhost/admin/](http://provider.localhost/admin/) |
+| Consumer | [http://consumer.localhost/admin/](http://consumer.localhost/admin/) |
+| Keycloak | [http://keycloak.localhost](http://keycloak.localhost) (admin console: `admin` / `admin`) |
 
 Users (same in the three realms; the password is the user name):
 

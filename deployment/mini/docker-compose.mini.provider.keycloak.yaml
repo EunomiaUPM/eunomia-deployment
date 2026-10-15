@@ -14,20 +14,17 @@ services:
       - ./../../static/envs/provider/proxy.mini.env.example
     volumes:
       - ./../../static/react/proxy-templates-mini:/templates:ro
-    ports:
-      - "8081:8081"
     networks:
-      default:
-      ds-mini:
-        aliases:
-          - provider.localhost
+      - default
+      - ds-mini
     command:
       - --provider=keycloak-oidc
-      - --oidc-issuer-url=http://keycloak.localhost:8080/realms/provider
-      - --redirect-url=http://provider.localhost:8081/oauth2/callback
-      - --whitelist-domain=provider.localhost:8081
-      - --backend-logout-url=http://keycloak.localhost:8080/realms/provider/protocol/openid-connect/logout?id_token_hint={id_token}
-      - --http-address=0.0.0.0:8081
+      - --oidc-issuer-url=http://keycloak.localhost/realms/provider
+      - --redirect-url=http://provider.localhost/oauth2/callback
+      - --whitelist-domain=provider.localhost
+      - --backend-logout-url=http://keycloak.localhost/realms/provider/protocol/openid-connect/logout?id_token_hint={id_token}
+      - --http-address=0.0.0.0:4180
+      - --reverse-proxy=true
       - --upstream=http://provider:1200/
       - --email-domain=*
       - --code-challenge-method=S256
