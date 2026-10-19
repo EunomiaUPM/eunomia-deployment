@@ -16,7 +16,7 @@ services:
 
   fafnir-setup:
     container_name: "fafnir-setup"
-    image: "rmenendez8/fafnir:v0.2.0"
+    image: "rmenendez8/fafnir:v0.3.test"
     restart: "no"
     depends_on:
       heimdall-db:
@@ -35,7 +35,7 @@ services:
 
   fafnir-wallet:
     container_name: "fafnir-wallet"
-    image: "rmenendez8/fafnir:v0.2.0"
+    image: "rmenendez8/fafnir:v0.3.test"
     restart: always
     depends_on:
       fafnir-setup:
@@ -58,10 +58,13 @@ services:
       retries: 10
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - ds-mini
 
   heimdall-setup:
     container_name: heimdall-setup
-    image: rmenendez8/heimdall:v2.1.0
+    image: rmenendez8/heimdall:v2.2.test
     restart: "no"
     depends_on:
       heimdall-db:
@@ -81,7 +84,7 @@ services:
 
   heimdall:
     container_name: heimdall
-    image: rmenendez8/heimdall:v2.1.0
+    image: rmenendez8/heimdall:v2.2.test
     restart: always
     ports:
       - "1500:1500"
@@ -103,7 +106,7 @@ services:
       - --env-file
       - /app/static/config/mini_eco_authority.yaml
     healthcheck:
-      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:1500/readiness" ]
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:1500/api/v1/readiness" ]
       interval: 10s
       timeout: 2s
       retries: 10

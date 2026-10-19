@@ -23,6 +23,10 @@ connection_config:
 
 oauth:
   provider: keycloak
+  # nginx forwards the user's token in X-Eunomia-User-Token (the default user_header).
+  # Verifying it against the realm instead of trusting the proxy:
+  # strict: true
+  # issuer: 'http://keycloak.localhost/realms/authority'
 
 db_config:
   db_type: Postgres

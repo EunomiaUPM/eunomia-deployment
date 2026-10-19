@@ -31,19 +31,38 @@ services:
       - --backend-logout-url=http://keycloak.localhost/realms/authority/protocol/openid-connect/logout?id_token_hint={id_token}
       - --http-address=0.0.0.0:4180
       - --reverse-proxy=true
-      - --upstream=http://heimdall:1500/
+      # Gatekeeper behind nginx (auth_request): answers whether the session is valid and, on
+      # 202, the user's token (X-Auth-Request-Access-Token), which nginx forwards to the
+      # component. It proxies nothing, so the routes it does not guard are not its concern.
+      - --upstream=static://202
+      - --set-xauthrequest=true
+      - --pass-access-token=true
+      - --cookie-refresh=25m
       - --email-domain=*
       - --code-challenge-method=S256
-      - --pass-user-headers=true
-      - --pass-authorization-header=true
       - --skip-provider-button=false
       - --custom-templates-dir=/templates
       - --provider-display-name=Authority
       - --skip-jwt-bearer-tokens=true
       - --cookie-secure=false
-      - '--api-route=^/admin/api/'
-      - '--api-route=^/api/'
-      - '--skip-auth-route=^/\.well-known/(did\.json|openid-credential-issuer|oauth-authorization-server|federated-catalog)$$'
-      - '--skip-auth-route=^/api/v1/gate/(access|continue/[^/.][^/]*)$$'
-      - '--skip-auth-route=^/api/v1/issuer/(credentialOffer|token|credential)$$'
-      - '--skip-auth-route=^/api/v1/verifier/(pd|verify)/[^/.][^/]*$$'
+      # Former in-line proxy flags (it proxied everything and nginx was Caddy):
+      # - --http-address=0.0.0.0:4180
+      # - --reverse-proxy=true
+      # - --upstream=http://heimdall:1500/
+      # - --email-domain=*
+      # - --code-challenge-method=S256
+      # - --pass-user-headers=true
+      # # The user's token goes in X-Forwarded-Access-Token, so Authorization reaches the
+      # # component untouched on the protocol routes (GNAP, DSP, OID4VCI tokens).
+      # - --pass-access-token=true
+      # - --skip-provider-button=false
+      # - --custom-templates-dir=/templates
+      # - --provider-display-name=Authority
+      # - --skip-jwt-bearer-tokens=true
+      # - --cookie-secure=false
+      # - '--api-route=^/admin/api/'
+      # - '--api-route=^/api/'
+      # - '--skip-auth-route=^/\.well-known/(did\.json|openid-credential-issuer|oauth-authorization-server|federated-catalog)$$'
+      # - '--skip-auth-route=^/api/v1/gate/(access|continue/[^/.][^/]*)$$'
+      # - '--skip-auth-route=^/api/v1/issuer/(credentialOffer|token|credential)$$'
+      # - '--skip-auth-route=^/api/v1/verifier/(pd|verify)/[^/.][^/]*$$'

@@ -27,7 +27,7 @@ services:
 
   fafnir-setup:
     container_name: "provider-fafnir-setup"
-    image: "rmenendez8/fafnir:v0.2.0"
+    image: "rmenendez8/fafnir:v0.3.test"
     restart: "no"
     depends_on:
       provider-db:
@@ -46,7 +46,7 @@ services:
 
   fafnir-wallet:
     container_name: "provider-fafnir-wallet"
-    image: "rmenendez8/fafnir:v0.2.0"
+    image: "rmenendez8/fafnir:v0.3.test"
     restart: always
     depends_on:
       fafnir-setup:
@@ -69,13 +69,16 @@ services:
       retries: 10
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - ds-mini
 
   # =========================
   # Setup job (one-shot)
   # =========================
   provider-setup:
     container_name: provider-setup
-    image: "rmenendez8/eunomia:v1.4.0"
+    image: "rmenendez8/eunomia:v1.6.test"
     command: ["setup", "-e", "/app/static/config/mini.provider.yaml"]
     volumes:
       - ./../../static/specs/agent/:/app/static/specs/
@@ -95,7 +98,7 @@ services:
   # =========================
   provider:
     container_name: provider
-    image: "rmenendez8/eunomia:v1.4.0"
+    image: "rmenendez8/eunomia:v1.6.test"
     command: ["start", "-e", "/app/static/config/mini.provider.yaml"]
     ports:
       - "1200:1200"

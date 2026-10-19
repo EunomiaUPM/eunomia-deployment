@@ -1,14 +1,18 @@
 name: mini-keycloak
 
 services:
-  caddy:
-    image: caddy:2.8.4
-    container_name: caddy
+  # Edge: the only published port. Protocol routes go straight to each component; user routes
+  # ask that component's oauth2-proxy (gatekeeper) first. The aliases make the containers enter
+  # by the same names as the browser.
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nginx
     restart: unless-stopped
     ports:
       - "80:80"
     volumes:
-      - ./../../static/config/caddy/mini/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./../../static/config/nginx/mini/conf.d:/etc/nginx/conf.d:ro
+      - ./../../static/config/nginx/mini/snippets:/etc/nginx/snippets:ro
     networks:
       ds-mini:
         aliases:
@@ -16,6 +20,23 @@ services:
           - authority.localhost
           - provider.localhost
           - consumer.localhost
+
+  # Former edge (it only gave names to the proxies), replaced by nginx:
+  # caddy:
+  #   image: caddy:2.8.4
+  #   container_name: caddy
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #   volumes:
+  #     - ./../../static/config/caddy/mini/Caddyfile:/etc/caddy/Caddyfile:ro
+  #   networks:
+  #     ds-mini:
+  #       aliases:
+  #         - keycloak.localhost
+  #         - authority.localhost
+  #         - provider.localhost
+  #         - consumer.localhost
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.4

@@ -45,16 +45,18 @@ The wallets are internal (no published port). Their example secrets live in `/va
 
 ## Keycloak mode
 
-With `-Auth keycloak` every component sits behind its own oauth2-proxy and a shared Keycloak handles the sign-in (one realm per component). Protocol routes (DSP, GNAP, OID4VCI/OID4VP, well-known) pass without a session; everything else needs one.
+With `-Auth keycloak` a shared Keycloak handles the sign-in (one realm per component) and every component has its own oauth2-proxy as **gatekeeper**. Protocol routes (DSP, GNAP, OID4VCI/OID4VP, callbacks, data plane, well-known) reach the component untouched, with their own `Authorization`; everything else needs a session.
 
-A Caddy edge proxy is the only published port (**80**, which must be free). It routes each request by its host name to the right oauth2-proxy (or to Keycloak); oauth2-proxy then handles the sign-in and forwards to the component. Neither the components nor the proxies publish ports.
+An nginx edge is the only published port (**80**, which must be free). It routes each request by its host name. Protocol routes go straight to the component. User routes (the console and its API) first ask that component's oauth2-proxy whether the session is valid (`auth_request`); on yes, nginx forwards the request with the user's token in `X-Eunomia-User-Token`, and on no it sends the browser to sign in. oauth2-proxy itself never forwards traffic. Neither the components nor the proxies publish ports. The configuration is in `static/config/nginx/mini/`.
 
 ```
-browser / containers ──► Caddy :80 ──► <component>-proxy (oauth2-proxy) ──► component
-                                  └──► keycloak
+browser / containers ──► nginx :80 ──────────────────────────────► component   (protocol routes)
+                                 ├──► <component>-proxy "?" ──┐
+                                 │                            └──► component   (user routes)
+                                 └──► keycloak
 ```
 
-Every service gets a `*.localhost` name without port, valid both from the browser (browsers resolve `*.localhost` to 127.0.0.1) and from the containers (aliases of Caddy on the `ds-mini` network), so the containers also go through Caddy and the proxies, as they would on the internet:
+Every service gets a `*.localhost` name without port, valid both from the browser (browsers resolve `*.localhost` to 127.0.0.1) and from the containers (aliases of nginx on the `ds-mini` network), so the containers also go through nginx, as they would on the internet:
 
 | Component | URL |
 |---|---|
@@ -69,7 +71,12 @@ Users (same in the three realms; the password is the user name):
 |---|---|
 | `john.doe` | `/admin` (root) |
 | `jane.doe` | `/admin/org` |
+| `mary.major` | `/admin/org` |
 | `richard.roe` | `/admin/org/team` |
+
+`jane.doe` and `mary.major` share a role on purpose: what one creates as private, the other does not see (only its owner and the roles above it do).
+
+For scripts there is a service account per realm: client `cli`, secret `<realm>-cli-secret` (example values of the mini). `EUNOMIA_KEYCLOAK=1` makes the ds-agent scripts sign in with it (see `scripts/README.md` in ds-agent).
 
 Switching between `static` and `keycloak` needs a `-Down` first: each component stores its own URL and DID, which differ between modes. Keycloak keeps no data, so every time its container is recreated it imports the default realms again (`static/config/keycloak/mini/`).
 

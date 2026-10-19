@@ -14,5 +14,5 @@ db_config:
   url: 'heimdall-db'
   port: '5432'
 
-is_docker: true
+is_docker: false
 is_vault_real: false

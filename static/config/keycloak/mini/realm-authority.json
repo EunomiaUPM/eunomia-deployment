@@ -67,6 +67,24 @@
       ]
     },
     {
+      "username": "mary.major",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Mary",
+      "lastName": "Major",
+      "email": "mary.major@example.org",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "mary.major",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/admin/org"
+      ]
+    },
+    {
       "username": "richard.roe",
       "enabled": true,
       "emailVerified": true,
