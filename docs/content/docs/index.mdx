@@ -8,12 +8,12 @@ A **data space** is a network where organisations share data under rules they ag
 **EUNOMIA** builds data spaces from open standards (the Dataspace Protocol, ODRL, GNAP, OpenID for Verifiable Credentials, W3C Verifiable Credentials) with a small set of Rust components, and this repository deploys them. On one machine, a handful of commands give you an authority and as many agents as you want, onboarded, and a demo factory full of robots any agent can share:
 
 ```bash
-./eunomia authority add authority                # an authority
-./eunomia agent add alice                        # two agents, onboarded with it
+./eunomia authority add authority                    # an authority
+./eunomia agent add alice                            # two agents, onboarded with it
 ./eunomia agent add bob
-./eunomia demo up                                # a backend full of robots
-./eunomia catalog populate alice                 # alice publishes it
-./eunomia e2e --consumer bob --provider alice    # bob negotiates, pulls and streams
+./eunomia demo up                                    # a backend full of robots
+./eunomia demo publish alice                         # alice publishes it
+./eunomia demo test --consumer bob --provider alice  # bob negotiates, pulls and streams
 ```
 
 <Cards>

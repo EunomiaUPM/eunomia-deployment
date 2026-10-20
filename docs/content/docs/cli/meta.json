@@ -2,6 +2,7 @@
   "title": "CLI",
   "pages": [
     "workflows",
+    "extensions",
     "reference"
   ]
 }

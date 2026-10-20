@@ -36,10 +36,10 @@ The prod configs have not been run against a real Vault since the move to the Fa
 Follow [Authority in production](/docs/deployment/production/authority) on the authority's server and [Agent in production](/docs/deployment/production/agent) on each agent's server, or use the [deploy workflow](/docs/deployment/production/automated-deployment). On each server, from the checkout:
 
 ```bash
-./eunomia prod up authority    # on the authority's server, first
-./eunomia prod up agent        # on each agent's server
-./eunomia prod status agent    # its containers
-./eunomia prod logs agent -f   # its logs
+./eunomia prod up authority   # on the authority's server, first
+./eunomia prod up agent       # on each agent's server
+./eunomia prod status agent   # its containers
+./eunomia prod logs agent -f  # its logs
 ```
 
 </Step>
@@ -65,8 +65,8 @@ From any machine that reaches their public URLs (your laptop, a CI runner), add 
 
 ```bash
 ./eunomia onboard acme globex --authority authority
-./eunomia catalog populate acme                    # or publish your own data
-./eunomia e2e --consumer globex --provider acme
+./eunomia demo publish acme                    # or publish your own data
+./eunomia demo test --consumer globex --provider acme
 ```
 
 The demo catalog points at the demo factory, which has to run somewhere the agent reaches (`DOCKER_FACTORY_*_URL`). To share your own data, see [Extending the deployment](/docs/guides/extending).

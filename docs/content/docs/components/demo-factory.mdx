@@ -3,7 +3,7 @@ title: "The demo factory"
 description: "A data backend any agent can share: a factory with robots, their yearly measures and the events they emit."
 ---
 
-The demo factory is a data backend any agent can share: a fleet of robots, a year of production figures for each, and a stream of events the robots emit. It is a small Go service in [`services/demo-factory/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/services/demo-factory), with its own Postgres and a Keycloak in front, started with `./eunomia demo up` and published by an agent with `./eunomia catalog populate <agent>`. Several agents can publish it at once.
+The demo factory is a data backend any agent can share: a fleet of robots, a year of production figures for each, and a stream of events the robots emit. It is a small Go service in [`extensions/demo/service/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/extensions/demo/service), with its own Postgres and a Keycloak in front, started with `./eunomia demo up` and published by an agent with `./eunomia demo publish <agent>`. Several agents can publish it at once.
 
 The agent that publishes it sits in front of it: the agents that consume it never call it directly, and never see its credentials.
 
@@ -85,7 +85,7 @@ The publishing agent does the same thing on its own: its connectors use the OAut
 
 ## In the catalog
 
-`./eunomia catalog populate <agent>` creates in that agent's catalog, from [`static/catalog/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/static/catalog):
+`./eunomia demo publish <agent>` creates in that agent's catalog, from [`extensions/demo/payloads/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/extensions/demo/payloads):
 
 ```text
 Dataset: Factory Robots Dataset
@@ -107,9 +107,9 @@ The connector URLs are the ones the **publishing agent** uses, from its containe
 ## Developing it
 
 ```bash
-cd services/demo-factory
+cd extensions/demo/service
 go build ./...
-docker compose --env-file ../../versions.env up -d --build   # or: ./eunomia demo up --build
+docker compose --env-file ../../../versions.env up -d --build   # or: ./eunomia demo up --build
 ```
 
-The specs are in `services/demo-factory/specs/`: OpenAPI (also served at `/openapi.yaml`), protobuf and Postman collections.
+The specs are in `extensions/demo/service/specs/`: OpenAPI (also served at `/openapi.yaml`), protobuf and Postman collections.

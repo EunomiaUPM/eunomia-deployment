@@ -23,7 +23,7 @@ An EUNOMIA data space has two kinds of participant, **authorities** and **agents
 
 ### Provider and consumer are roles
 
-"Provider" and "consumer" are not kinds of agent: they are the roles two agents take **in one exchange**, the one whose catalog is used and the one that negotiates for it. The same agent provides in one exchange and consumes in the next, often at the same time. In this documentation and in the CLI (`eunomia e2e --consumer bob --provider alice`), the words always refer to that role.
+"Provider" and "consumer" are not kinds of agent: they are the roles two agents take **in one exchange**, the one whose catalog is used and the one that negotiates for it. The same agent provides in one exchange and consumes in the next, often at the same time. In this documentation and in the CLI (`eunomia demo test --consumer bob --provider alice`), the words always refer to that role.
 
 ## The life of an exchange
 
@@ -58,7 +58,7 @@ Under that agreement the consumer starts a transfer, pull or push. The provider'
 </Step>
 </Steps>
 
-`./eunomia e2e` runs the whole sequence and checks the result of every step; [Exchanging data](/docs/guides/data-exchange) shows each call.
+`./eunomia demo test` runs the whole sequence and checks the result of every step; [Exchanging data](/docs/guides/data-exchange) shows each call.
 
 ## Design principles
 
@@ -75,9 +75,9 @@ Under that agreement the consumer starts a transfer, pull or push. The provider'
 | `versions.env` | The component image versions, in one place |
 | `deployment/instances/` | Compose templates for local agents and authorities |
 | `deployment/prod/` | Compose files for one agent or authority per server |
-| `services/demo-factory/` | The demo data backend |
+| `extensions/` | [Extensions](/docs/cli/extensions): what the agents share. `extensions/demo/` holds the demo factory, its catalog payloads, its test and its notebooks |
+| `notebooks/` | What every extension's notebooks share: `01_auth`, the card helpers, the JupyterLab theme |
 | `static/config/` | Agent, authority and wallet configuration templates |
-| `static/catalog/` | The demo catalog an agent can publish |
 | `static/specs/` | OpenAPI specs of the agent and the authority |
 | `vault/` | Example keys, certificates and secrets |
 | `docs/` | This site |

@@ -1,53 +1,64 @@
 ---
-title: "Extending the deployment"
-description: "Share your own data instead of the demo factory, and build on this repository from another one."
+title: "Sharing your own data"
+description: "Your backend, its connectors and catalog entry, and a test, packaged as an extension that lives in your own repository."
 ---
 
-The demo factory is one backend an agent can share. Your own data takes the same three pieces: a service that holds it, connectors that tell the agent how to reach it, and a catalog entry that offers it.
+The demo factory is one backend an agent can share. Your own data takes the same pieces: a service that holds it, connectors that tell the agent how to reach it, a catalog entry that offers it, and a test that proves it flows. Packaged as an [extension](/docs/cli/extensions), they get commands of their own (`eunomia <yours> …`) without touching this repository.
+
+Start from a copy of `extensions/demo/` in your own repository, rename it, and point `EUNOMIA_EXTENSIONS` at it:
+
+```bash
+cp -r extensions/demo ~/my-project/weather
+# rename the class and `name` in __init__.py, then:
+echo "EUNOMIA_EXTENSIONS=$HOME/my-project/weather" >> .env
+./eunomia weather --help
+```
 
 ## 1. Your backend
 
-Any HTTP service the agent reaches works. For pull it answers a `GET`; for push it takes a subscription and POSTs events to the URL it was given. Run it next to the deployment and reach it from the agent at `http://host.docker.internal:<port>`, or anywhere on the network.
+Any HTTP service the agent reaches works. For pull it answers a `GET`; for push it takes a subscription and POSTs events to the URL it was given. Reach it from the agent at `http://host.docker.internal:<port>`, or anywhere on the network.
 
-A compose file of your own can sit next to the core ones and be started with the same `versions.env`:
+If you run it yourself, give it a compose file and declare it as a service of the extension: `eunomia status` shows it, `eunomia logs <service>` reads it, `stop` and `down` take it with them, `doctor` checks its ports and new instances keep off them.
 
-```bash
-docker compose --env-file versions.env -f my-backend/docker-compose.yaml up -d
+```python
+def services(self):
+    return [ComposeService("weather", HERE / "service" / "docker-compose.yaml", ports=(1510,), label="weather stations")]
 ```
 
-To add services to an agent's own compose project instead, list both files with the project name: Compose merges them.
-
-```bash
-docker compose --env-file versions.env \
-  -p eunomia-alice -f deployment/instances/docker-compose.agent.yaml \
-  -f my-backend/docker-compose.extra.yaml up -d   # with alice's instance.env exported
-```
+`ComposeService` also gives you `up()` and `down()` for your own `up` and `down` actions; the demo's are in `extensions/demo/factory.py`.
 
 ## 2. Connectors
 
-A **connector template** says how to call the backend and which parameters that needs; a **connector instance** fills them in for one distribution. The demo ones, in [`static/catalog/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/static/catalog), are a starting point:
+A **connector template** says how to call the backend and which parameters that needs; a **connector instance** fills them in for one distribution. The demo ones, in [`extensions/demo/payloads/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/extensions/demo/payloads), are a starting point:
 
 - `07-connector-template-pull.json`: `interaction.mode: PULL`, a URL, methods and headers.
 - `08-connector-template-push.json`: `interaction.mode: PUSH`, with a subscribe call (its body gets the agent's own ingress URL, `{{__SYS_OWN_URL_DOCKER__}}{{__RUNTIME_INGRESS__}}`) and an unsubscribe call that can use fields of the subscribe response (`{{__RUNTIME_JSON_{.subscription.data.ID}__}}`).
 
 Both authenticate with an OAuth2 password grant. `authentication` also takes `NO_AUTH` and `BEARER_TOKEN` with a fixed token.
 
-## 3. The catalog entry
+## 3. The catalog entry: a publish action
 
-Create, in order, against the agent's API (`/api/v1/catalog-agent/...` and `/api/v1/connector/...`): the dataset, one distribution per format (`HTTP_PULL`, `HTTP_PUSH`), the policies, the templates and the instances. [`catalog.py`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/cli/eunomia/commands/catalog.py) does exactly that for the demo payloads and is short enough to copy. The agent's console (its URL plus `/admin/login`) does it by hand too.
-
-Then the usual flow works with your dataset:
+Create, in order, against the agent's API: the dataset, one distribution per format (`HTTP_PULL`, `HTTP_PUSH`), the policies, the connector templates and the instances. `eunomia.ext.catalog.Catalog` wraps those calls, and [`extensions/demo/publish.py`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/extensions/demo/publish.py) does exactly that with the demo payloads: short enough to copy. The agent's console (its URL plus `/admin`) does it by hand too.
 
 ```bash
-./eunomia e2e --consumer bob --provider alice --dataset "my dataset" --no-data-pull   # the data check expects the robots
+./eunomia weather publish alice
+./eunomia catalog show alice
 ```
 
-## Building on this repository
+## 4. The test
 
-A project of your own (another demo, a pilot, an internal deployment) can keep this repository as its base rather than a copy: as a git submodule or a pinned checkout, with its own compose files, configuration and catalog next to it. What makes that work:
+`test` is the extension point for proving the whole exchange works with your data: `eunomia weather test --consumer bob --provider alice`. Build it on `eunomia.ext.exchange`, which does discovery, the GNAP login, the negotiation and the transfers, and asserts every state; add the checks only you can make, on what comes through the dataplane or reaches the `EventSink`. The demo's, in `extensions/demo/e2e.py`, checks the robots arrive and that the factory refuses the same call without a token.
+
+Run it in CI next to the core's: the demo's own job does `eunomia demo publish` and `eunomia demo test` both ways.
+
+## 5. Notebooks
+
+Give the extension a `notebooks/` folder and a `notebooks()` point, and `eunomia weather notebook alice bob` opens them in their own session, with `01_auth` and the card helpers from the core and the variables your notebooks need. See [Notebooks](/docs/guides/notebooks).
+
+## What the core gives you
 
 - the image versions live in one file, `versions.env`;
 - container and project names take a prefix, `EUNOMIA_PREFIX`;
 - the configs reach their services by service name, not by container name;
-- instances take their ports from ranges you set, and the demo ports are variables;
-- the compose files can be merged with your own.
+- instances take their ports from ranges you set, and keep off your services' ports;
+- every agent, local or remote, by name: `agent("alice")` from `eunomia.ext`.

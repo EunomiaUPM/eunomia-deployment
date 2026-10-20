@@ -23,7 +23,7 @@ Start with `./eunomia doctor`, then `./eunomia status`, and look at the logs of 
 | Onboarding times out on Linux | The firewall (ufw, firewalld) blocks containers from reaching the host at `host.docker.internal`. Allow the `docker0` interface. |
 | A credential stays `Approved` or `Pending`, never `Finalized` | `./eunomia logs authority`. For `gx:VatId`: the participant certificate needs an `organizationIdentifier` with a VAT number, and the authority needs the eco role. |
 | The connection stays `Pending` | The agent you connect to asks for `gx:LabelCredential` and yours lacks it: `./eunomia onboard <agent>` with an eco authority. |
-| `502` from an agent on any DSP call | It holds no token for the agent it calls: the connection never completed. `./eunomia connect <agent> <other>`. |
+| `502` from an agent on any DSP call | It holds no token for the agent it calls: the GNAP login never completed. `./eunomia login <agent> <other>`. |
 | `Mate not found` on the catalog request | The agents use `did:web` on `host.docker.internal`: the port in the DID breaks the lookup. Use `did:jwk` for local instances (`did_config.type: Jwk`). |
 | Everything breaks after June 2027 | The example certificates in `vault/*/secrets/cert.pem.example` expire then. Regenerate them, keeping the `organizationIdentifier`. |
 
@@ -39,10 +39,10 @@ Start with `./eunomia doctor`, then `./eunomia status`, and look at the logs of 
 
 | Symptom | Cause and fix |
 | --- | --- |
-| `The catalog of … is empty` | Nothing published there yet: `./eunomia catalog populate <agent>`. |
+| `The catalog of … is empty` | Nothing published there yet: `./eunomia demo publish <agent>`. |
 | The data plane proxy answers an error | The provider agent could not reach the factory: is it up (`./eunomia demo up`)? Then `./eunomia logs <provider agent>`. |
 | `No event reached :1290` | `./eunomia logs demo`, and the logs of both agents. Port 1290 must be free (`EUNOMIA_SINK_PORT` to move it), and on Linux the firewall must let containers reach the host. |
-| `Cannot listen on port 1290` | Another `e2e` or `demo events` is running, or something else uses the port: set `EUNOMIA_SINK_PORT`. |
+| `Cannot listen on port 1290` | Another `demo test` or `demo events` is running, or something else uses the port: set `EUNOMIA_SINK_PORT`. |
 | Every event type arrives, not just the one subscribed to | That is how the demo factory behaves: it sends every event to every subscriber. |
 
 ## Starting over

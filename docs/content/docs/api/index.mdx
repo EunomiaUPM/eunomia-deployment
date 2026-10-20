@@ -15,7 +15,7 @@ These pages are generated from the specs in the repository, `npm run generate:ap
 | --- | --- |
 | DS-Agent | [`static/specs/agent/openapi/merged_openapi.json`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/specs/agent/openapi/merged_openapi.json), and one file per module next to it |
 | Heimdall | [`static/specs/heimdall/openapi/openapi.json`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/specs/heimdall/openapi/openapi.json) |
-| Demo factory | [`services/demo-factory/specs/openapi/robots.yaml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/services/demo-factory/specs/openapi/robots.yaml), also served at `http://127.0.0.1:1210/docs` |
+| Demo factory | [`extensions/demo/service/specs/openapi/robots.yaml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/extensions/demo/service/specs/openapi/robots.yaml), also served at `http://127.0.0.1:1210/docs` |
 
 ## Base URLs
 
@@ -37,11 +37,11 @@ Management routes are under `/api/v1`, Dataspace Protocol routes under `/dsp/cur
 | Ask for a credential | `POST /api/v1/vc-request/beg` | agent |
 | Credential requests | `GET /api/v1/vc-request/all` | agent |
 | Gaia-X self-attested VCs | `POST /api/v1/gaia/generate` | agent |
-| Connect to another agent | `POST /api/v1/peer-connection/connect` | the agent that connects |
+| GNAP login with another agent | `POST /api/v1/peer-connection/connect` | the agent that asks |
 | Another agent's catalog | `POST /dsp/current/catalog/rpc/setup-catalog-request` | the consumer |
 | Negotiation steps | `POST /dsp/current/negotiations/rpc/<step>` | consumer and provider |
 | Transfer steps | `POST /dsp/current/transfers/rpc/<step>` | consumer and provider |
 | Datasets, distributions, policies | `/api/v1/catalog-agent/...` | the agent that publishes |
 | Connector templates and instances | `/api/v1/connector/...` | the agent that publishes |
 
-[Onboarding](/docs/architecture/onboarding) shows the bodies of the onboarding calls and [Exchanging data](/docs/guides/data-exchange) those of the catalog, negotiation and transfer calls. `./eunomia e2e -v` prints every request and response it sends.
+[Onboarding](/docs/architecture/onboarding) shows the bodies of the onboarding calls and [Exchanging data](/docs/guides/data-exchange) those of the catalog, negotiation and transfer calls. `./eunomia demo test -v` prints every request and response it sends.

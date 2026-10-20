@@ -1,6 +1,6 @@
 ---
 title: "Local data space"
-description: "Authorities and agents on one machine, as many as you need: eunomia creates, starts, connects and removes them."
+description: "Authorities and agents on one machine, as many as you need: eunomia creates, starts, logs in and removes them."
 ---
 
 On one machine, `eunomia` works as a **hypervisor of instances**. You create the authorities and agents you need, by name; each one gets free ports, its own containers, database, wallet and identity; and every other command (onboarding, catalogs, exchanges) refers to them by name.
@@ -10,12 +10,12 @@ There is no fixed topology. Two agents and an authority is the smallest useful d
 ## A data space from nothing
 
 ```bash
-./eunomia authority add authority      # an authority, with the eco role (Gaia-X)
-./eunomia agent add alice              # an agent, onboarded with that authority
-./eunomia agent add bob                # another one
-./eunomia demo up                      # the demo factory, a backend any agent can share
-./eunomia catalog populate alice       # alice publishes the factory
-./eunomia e2e --consumer bob --provider alice
+./eunomia authority add authority  # an authority, with the eco role (Gaia-X)
+./eunomia agent add alice          # an agent, onboarded with that authority
+./eunomia agent add bob            # another one
+./eunomia demo up                  # the demo factory, a backend any agent can share
+./eunomia demo publish alice       # alice publishes the factory
+./eunomia demo test --consumer bob --provider alice
 ```
 
 `agent add` onboards the new agent with the authority when there is only one (or the one named with `--authority`): wallet, `DataSpaceParticipant` credential, Gaia-X legal and label credentials. `--no-onboard` only creates it; `eunomia onboard <agent>` does the rest later.
@@ -23,22 +23,22 @@ There is no fixed topology. Two agents and an authority is the smallest useful d
 Every agent is the same. alice can publish and bob consume, and the other way round:
 
 ```bash
-./eunomia catalog populate bob
-./eunomia e2e --consumer alice --provider bob
+./eunomia demo publish bob
+./eunomia demo test --consumer alice --provider bob
 ```
 
 ## Instances
 
 ```bash
-./eunomia ls                      # every instance, where it runs, its URL and state
-./eunomia status                  # the same, plus the demo factory; non-zero exit if one is not healthy
-./eunomia status alice            # one instance: its containers, console, API, Postgres
-./eunomia logs alice -f           # its logs ('demo' for the factory, or any container name)
-./eunomia stop                    # stop every instance and the demo, keeping data
-./eunomia up                      # start every registered instance again
-./eunomia up bob                  # or only some
-./eunomia rm bob                  # remove one: containers, volumes, configuration, identity
-./eunomia down                    # remove every local instance and the demo factory
+./eunomia ls             # every instance, where it runs, its URL, console and state
+./eunomia status         # the same, plus the demo factory; non-zero exit if one is not healthy
+./eunomia status alice   # one instance: its containers, console, API, Postgres
+./eunomia logs alice -f  # its logs ('demo' for the factory, or any container name)
+./eunomia stop           # stop every instance and the demo, keeping data
+./eunomia up             # start every registered instance again
+./eunomia up bob         # or only some
+./eunomia rm bob         # remove one: containers, volumes, configuration, identity
+./eunomia down           # remove every local instance and the demo factory
 ```
 
 `up` never creates instances: it starts the ones already registered. `down` and `rm` ask first (`--yes` skips the question); `down --dry-run` shows what would go.
@@ -53,8 +53,8 @@ Each instance takes the first free HTTP port in `1600-1999` and Postgres port in
 
 | What | Where |
 | --- | --- |
-| An agent's console | `http://127.0.0.1:<port>/admin/login`, `eunomia` / `eunomia` |
-| An authority's console | `http://127.0.0.1:<port>/admin/home` |
+| An agent's console | `http://127.0.0.1:<port>/admin`, `eunomia` / `eunomia` |
+| An authority's console | `http://127.0.0.1:<port>/admin` |
 | From another container | `http://host.docker.internal:<port>` |
 | An instance's Postgres | `127.0.0.1:<db port>`, user, password and database `eunomia_agent` or `standalone_heimdall` |
 | Demo factory | `http://127.0.0.1:1210/docs` (pull), `:1220/docs` (push), `:1230` (Keycloak, `admin` / `admin`) |
@@ -62,24 +62,29 @@ Each instance takes the first free HTTP port in `1600-1999` and Postgres port in
 ### Authorities
 
 ```bash
-./eunomia authority add authority                    # eco role: data space membership and Gaia-X
-./eunomia authority add club --role dataspace        # membership only
-./eunomia agent add carol --authority club           # onboard with that one
-./eunomia onboard alice --authority club             # alice can belong to both
+./eunomia authority add authority              # eco role: data space membership and Gaia-X
+./eunomia authority add club --role dataspace  # membership only
+./eunomia agent add carol --authority club     # onboard with that one
+./eunomia onboard alice --authority club       # alice can belong to both
 ```
 
 Agents only accept peers holding the Gaia-X label credential, which only an eco authority issues. See [Identity and trust](/docs/architecture/trust).
 
-### Connecting agents
+### Logging agents in
 
-`eunomia e2e` and `eunomia demo` connect the two agents when they are not connected yet. To do it by hand:
+Before two agents trade, they log in with each other over GNAP: one asks the other for a grant, the other verifies its credentials and approves it, and both end up holding a token for the other. `eunomia demo test` and `eunomia demo` do it when the two are not logged in yet. To do it by hand:
 
 ```bash
-./eunomia connect bob alice          # bob gets a token to talk to alice
-./eunomia connect bob alice --both   # and alice one for bob
+./eunomia login alice bob
 ```
 
-A connection works one way: the agent that connects can browse the other's catalog and negotiate with it.
+```text
+alice and bob are logged in over GNAP (grant Approved):
+  alice        holds a token for bob: yes
+  bob          holds a token for alice: yes
+```
+
+After that either can browse the other's catalog and negotiate with it.
 
 ## What is in instances/name
 
@@ -103,8 +108,8 @@ Instances on other servers join the same registry by URL, and every command that
 
 ```bash
 ./eunomia remote add far --kind agent --url https://agent.example.org
-./eunomia connect alice far
-./eunomia e2e --consumer alice --provider far
+./eunomia login alice far
+./eunomia demo test --consumer alice --provider far
 ```
 
 See [Production](/docs/deployment/production).

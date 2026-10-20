@@ -6,13 +6,13 @@ description: "The eunomia commands in the order you use them, task by task."
 ## A first data space
 
 ```bash
-./eunomia doctor                       # Docker, Compose v2, free ports, versions.env
+./eunomia doctor           # Docker, Compose v2, free ports, versions.env
 ./eunomia authority add authority
-./eunomia agent add alice              # onboarded with the only authority
+./eunomia agent add alice  # onboarded with the only authority
 ./eunomia agent add bob
 ./eunomia demo up
-./eunomia catalog populate alice
-./eunomia e2e --consumer bob --provider alice
+./eunomia demo publish alice
+./eunomia demo test --consumer bob --provider alice
 ```
 
 `doctor --images` also checks that every pinned image can be pulled, which is worth doing before a workshop or on a slow network.
@@ -20,13 +20,13 @@ description: "The eunomia commands in the order you use them, task by task."
 ## Day to day
 
 ```bash
-./eunomia ls                  # instances, URLs, state
-./eunomia status              # the same, plus the demo; non-zero exit if something is unhealthy
-./eunomia status alice        # one instance in detail
-./eunomia logs alice -f       # its logs ('demo' for the factory)
-./eunomia stop                # everything, keeping data
-./eunomia up                  # everything again
-./eunomia up alice            # or one
+./eunomia ls             # instances, URLs, state
+./eunomia status         # the same, plus the demo; non-zero exit if something is unhealthy
+./eunomia status alice   # one instance in detail
+./eunomia logs alice -f  # its logs ('demo' for the factory)
+./eunomia stop           # everything, keeping data
+./eunomia up             # everything again
+./eunomia up alice       # or one
 ```
 
 After `git pull`, `./eunomia up` applies new image versions to the existing instances. `demo up --build` rebuilds the demo factory.
@@ -34,13 +34,13 @@ After `git pull`, `./eunomia up` applies new image versions to the existing inst
 ## More agents, more authorities
 
 ```bash
-./eunomia agent add carol                         # another agent
-./eunomia agent add dave --no-onboard             # created, not onboarded
-./eunomia onboard dave                            # onboard it later
+./eunomia agent add carol                      # another agent
+./eunomia agent add dave --no-onboard          # created, not onboarded
+./eunomia onboard dave                         # onboard it later
 
-./eunomia authority add club --role dataspace     # a second authority, membership only
-./eunomia agent add erin --authority club         # onboarded with that one
-./eunomia onboard alice --authority club          # an agent can belong to several
+./eunomia authority add club --role dataspace  # a second authority, membership only
+./eunomia agent add erin --authority club      # onboarded with that one
+./eunomia onboard alice --authority club       # an agent can belong to several
 ```
 
 ## Exchanging data
@@ -48,14 +48,14 @@ After `git pull`, `./eunomia up` applies new image versions to the existing inst
 Any agent can publish and any agent can consume; the roles are per exchange.
 
 ```bash
-./eunomia catalog populate alice                  # alice publishes the factory
-./eunomia catalog populate bob                    # so does bob
+./eunomia demo publish alice                                       # alice publishes the factory
+./eunomia demo publish bob                                         # so does bob
 ./eunomia catalog show alice
 
-./eunomia e2e --consumer bob --provider alice     # bob negotiates with alice
-./eunomia e2e --consumer alice --provider bob     # and the other way round
-./eunomia e2e --consumer carol --provider alice --keep-open   # leave a pull transfer open
-./eunomia e2e --consumer bob --provider alice -v  # every request and response
+./eunomia demo test --consumer bob --provider alice                # bob negotiates with alice
+./eunomia demo test --consumer alice --provider bob                # and the other way round
+./eunomia demo test --consumer carol --provider alice --keep-open  # leave a pull transfer open
+./eunomia demo test --consumer bob --provider alice -v             # every request and response
 
 ./eunomia demo robots --consumer bob --provider alice | jq '.[0]'
 ./eunomia demo events --consumer bob --provider alice --count 10
@@ -63,14 +63,23 @@ TOKEN=$(./eunomia demo token)                     # call the factory directly
 curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:1210/robots/
 ```
 
-`e2e` and `demo` connect the two agents first if they are not connected. To connect by hand: `./eunomia connect bob alice` (`--both` for both ways).
+`demo test` and the other `demo` actions log the two agents in with each other first if they are not yet. To do it by hand: `./eunomia login bob alice`.
+
+## Step by step, in notebooks
+
+```bash
+./eunomia demo notebook alice bob            # JupyterLab: alice provides, bob consumes
+./eunomia demo notebook bob alice --execute  # the other way round, headless
+```
+
+See [Notebooks](/docs/guides/notebooks).
 
 ## Start over
 
 ```bash
-./eunomia rm carol                # one instance: containers, volumes, configuration, identity
-./eunomia down --dry-run          # what down would remove
-./eunomia down --yes              # every local instance and the demo factory
+./eunomia rm carol        # one instance: containers, volumes, configuration, identity
+./eunomia down --dry-run  # what down would remove
+./eunomia down --yes      # every local instance and the demo factory
 ```
 
 ## Production

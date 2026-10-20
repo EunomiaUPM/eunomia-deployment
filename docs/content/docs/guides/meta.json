@@ -2,6 +2,7 @@
   "title": "Guides",
   "pages": [
     "data-exchange",
+    "notebooks",
     "extending"
   ]
 }

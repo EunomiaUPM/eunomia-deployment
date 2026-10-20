@@ -17,8 +17,8 @@ const heroScript: TerminalLine[] = [
   { kind: 'cmd', text: './eunomia agent add alice && ./eunomia agent add bob' },
   { kind: 'ok', text: 'alice holds gx_LabelCredential_jwt_vc_json' },
   { kind: 'ok', text: 'bob holds gx_LabelCredential_jwt_vc_json' },
-  { kind: 'cmd', text: './eunomia catalog populate alice' },
-  { kind: 'cmd', text: './eunomia e2e --consumer bob --provider alice' },
+  { kind: 'cmd', text: './eunomia demo publish alice' },
+  { kind: 'cmd', text: './eunomia demo test --consumer bob --provider alice' },
   { kind: 'ok', text: 'bob is connected to alice' },
   { kind: 'dim', text: '  8/8 FINALIZED  agreement=urn:agreement:3b72dec8…' },
   { kind: 'ok', text: 'Dataplane proxy -> HTTP 200, 5 robot(s)' },
@@ -296,8 +296,8 @@ export default function HomePage() {
                 { kind: 'cmd', text: 'git clone https://github.com/EunomiaUPM/eunomia-deployment.git && cd eunomia-deployment' },
                 { kind: 'cmd', text: './eunomia authority add authority' },
                 { kind: 'cmd', text: './eunomia agent add alice && ./eunomia agent add bob' },
-                { kind: 'cmd', text: './eunomia demo up && ./eunomia catalog populate alice' },
-                { kind: 'cmd', text: './eunomia e2e --consumer bob --provider alice' },
+                { kind: 'cmd', text: './eunomia demo up && ./eunomia demo publish alice' },
+                { kind: 'cmd', text: './eunomia demo test --consumer bob --provider alice' },
               ]}
             />
           </div>

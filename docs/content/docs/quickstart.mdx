@@ -39,53 +39,53 @@ The first command downloads the images, which takes a few minutes. Then:
 The names are yours to choose. Every instance takes free ports; `./eunomia ls` lists them with their URLs:
 
 ```text
-NAME       KIND             WHERE   URL                     STATE
-alice      agent            local   http://127.0.0.1:1601   running (healthy)
-authority  authority (eco)  local   http://127.0.0.1:1600   running (healthy)
-bob        agent            local   http://127.0.0.1:1602   running (healthy)
+NAME       KIND             WHERE  URL                    ADMIN                        STATE
+alice      agent            local  http://127.0.0.1:1601  http://127.0.0.1:1601/admin  running (healthy)
+authority  authority (eco)  local  http://127.0.0.1:1600  http://127.0.0.1:1600/admin  running (healthy)
+bob        agent            local  http://127.0.0.1:1602  http://127.0.0.1:1602/admin  running (healthy)
 ```
 
-Open an agent's console at its URL plus `/admin/login` (`eunomia` / `eunomia`).
+`ADMIN` is each instance's console (agents: `eunomia` / `eunomia`).
 
 ## 3. Share data
 
-Any agent can publish data and any agent can consume it. Start the demo factory, a backend with robots, and let alice publish it:
+Any agent can publish data and any agent can consume it. What they share comes from an [extension](/docs/cli/extensions); the demo one brings a factory with robots, and everything about it is under `eunomia demo`. Start the factory and let alice publish it:
 
 ```bash
 ./eunomia demo up
-./eunomia catalog populate alice
+./eunomia demo publish alice
 ```
 
 Then let bob get it:
 
 ```bash
-./eunomia e2e --consumer bob --provider alice
+./eunomia demo test --consumer bob --provider alice
 ```
 
-bob connects to alice, asks for her catalog, negotiates a contract over the factory dataset, pulls the robots through alice and receives a robot event she pushes. It ends with `END-TO-END TEST PASSED`.
+bob logs in with alice over GNAP, asks for her catalog, negotiates a contract over the factory dataset, pulls the robots through alice and receives a robot event she pushes. It ends with `END-TO-END TEST PASSED`.
 
 To see it as an application would:
 
 ```bash
-./eunomia demo robots --consumer bob --provider alice    # the robots, as JSON
-./eunomia demo events --consumer bob --provider alice    # the robot events, live, until Ctrl+C
+./eunomia demo robots --consumer bob --provider alice  # the robots, as JSON
+./eunomia demo events --consumer bob --provider alice  # the robot events, live, until Ctrl+C
 ```
 
 The roles are per exchange. Publish the catalog in bob too, and alice can consume from him:
 
 ```bash
-./eunomia catalog populate bob
-./eunomia e2e --consumer alice --provider bob
+./eunomia demo publish bob
+./eunomia demo test --consumer alice --provider bob
 ```
 
-[Exchanging data](/docs/guides/data-exchange) walks through what happens in each step, and how to do it from the consoles.
+[Exchanging data](/docs/guides/data-exchange) walks through what happens in each step, and how to do it from the consoles. To run it one call at a time, in Jupyter: `./eunomia demo notebook alice bob` ([Notebooks](/docs/guides/notebooks)).
 
 ## 4. Stop or start over
 
 ```bash
-./eunomia stop     # stop everything, keep the data
-./eunomia up       # start every instance again
-./eunomia down     # remove every instance and the demo, to start from scratch
+./eunomia stop  # stop everything, keep the data
+./eunomia up    # start every instance again
+./eunomia down  # remove every instance and the demo, to start from scratch
 ```
 
 ## Next

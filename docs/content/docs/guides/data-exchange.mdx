@@ -3,7 +3,7 @@ title: "Exchanging data"
 description: "The catalog request, the contract negotiation and the pull and push transfers, step by step with the demo factory."
 ---
 
-`./eunomia e2e` runs the whole sequence below and checks the result of every step. This page shows what it does, so you can reproduce it from your own code or from the consoles.
+`./eunomia demo test` runs the whole sequence below and checks the result of every step. This page shows what it does, so you can reproduce it from your own code or from the consoles.
 
 The examples use two agents from the [quickstart](/docs/quickstart): **bob**, the consumer in this exchange, and **alice**, the provider, whose catalog bob negotiates for. Any two agents work the same way, and they can swap roles in the next exchange.
 
@@ -17,7 +17,7 @@ GET /api/v1/mates/all             on bob → alice must be there with a token
 GET /.well-known/dspace-version/2025-1   on bob → { "path": "/dsp/current", … }
 ```
 
-bob's callback address is `http://host.docker.internal:<bob's port>` plus that path. No token for alice means bob is not connected to her: `./eunomia connect bob alice`.
+bob's callback address is `http://host.docker.internal:<bob's port>` plus that path. No token for alice means bob and alice have not logged in with each other: `./eunomia login bob alice`.
 
 ## 1. Catalog
 
@@ -79,14 +79,14 @@ When the provider starts it, its push connector subscribes to the factory with i
 
 ## From the consoles
 
-The same flow is available by hand in bob's console (his URL plus `/admin/login`, `eunomia` / `eunomia`): browse alice's catalog, request a contract on the dataset, and once it is finalized start a transfer from the agreement. Alice's console shows the same negotiations and transfers from the other side.
+The same flow is available by hand in bob's console (his URL plus `/admin`, `eunomia` / `eunomia`): browse alice's catalog, request a contract on the dataset, and once it is finalized start a transfer from the agreement. Alice's console shows the same negotiations and transfers from the other side.
 
 ## Any two agents
 
-`e2e` and `demo` take the two roles by name, so any pair of agents works, local or remote:
+`demo test` and the other `demo` actions take the two roles by name, so any pair of agents works, local or remote:
 
 ```bash
-./eunomia catalog populate carol
-./eunomia e2e --consumer alice --provider carol
+./eunomia demo publish carol
+./eunomia demo test --consumer alice --provider carol
 ./eunomia demo events --consumer bob --provider carol
 ```

@@ -15,18 +15,20 @@ All you need is Docker.
 ```bash
 git clone https://github.com/EunomiaUPM/eunomia-deployment.git
 cd eunomia-deployment
-./eunomia doctor                                # check Docker, ports and versions
-./eunomia authority add authority               # an authority
-./eunomia agent add alice                       # two agents, onboarded with it
+./eunomia doctor                                     # check Docker, ports and versions
+./eunomia authority add authority                    # an authority
+./eunomia agent add alice                            # two agents, onboarded with it
 ./eunomia agent add bob
-./eunomia demo up                               # a demo backend: a factory with robots
-./eunomia catalog populate alice                # alice publishes it
-./eunomia e2e --consumer bob --provider alice   # bob negotiates, pulls the robots, streams their events
+./eunomia demo up                                    # a demo backend: a factory with robots
+./eunomia demo publish alice                         # alice publishes it
+./eunomia demo test --consumer bob --provider alice  # bob negotiates, pulls the robots, streams their events
 ```
 
 On Windows, use `.\eunomia.cmd` instead of `./eunomia`. No Docker at hand? Open the repository in GitHub Codespaces.
 
-`./eunomia ls` lists the instances and their URLs; an agent's console is its URL plus `/admin/login` (`eunomia` / `eunomia`). Any agent can play either role: `./eunomia catalog populate bob` and `./eunomia e2e --consumer alice --provider bob` run it the other way round.
+`./eunomia ls` lists the instances, their URLs and their consoles (agents: `eunomia` / `eunomia`). `./eunomia demo notebook alice bob` runs the same exchange one call per cell, in Jupyter. Any agent can play either role: `./eunomia demo publish bob` and `./eunomia demo test --consumer alice --provider bob` run it the other way round.
+
+The demo is an extension (`extensions/demo/`): what agents share, and how you test it, comes from extensions. Your own project is another one, kept in its own repository and loaded with `EUNOMIA_EXTENSIONS`; see [Extensions](https://eunomiaupm.github.io/eunomia-deployment/docs/cli/extensions).
 
 ## Documentation
 

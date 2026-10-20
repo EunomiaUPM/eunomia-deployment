@@ -55,7 +55,7 @@ export const milestones: Milestone[] = [
       'Add a second agent: same software, its own identity, its own Gaia-X legal and label credentials.',
       'Start the demo factory and let alice publish it. bob connects to her over GNAP and reads her DCAT catalog over the Dataspace Protocol.',
     ],
-    commands: ['./eunomia agent add bob', './eunomia demo up', './eunomia catalog populate alice', './eunomia e2e --consumer bob --provider alice --list-datasets'],
+    commands: ['./eunomia agent add bob', './eunomia demo up', './eunomia demo publish alice', './eunomia demo test --consumer bob --provider alice --list-datasets'],
     result: 'alice’s catalog in your terminal, fetched by an agent she now trusts.',
   },
   {
@@ -64,10 +64,10 @@ export const milestones: Milestone[] = [
     title: 'ODRL negotiation',
     subtitle: 'Contracts the machines agree on.',
     steps: [
-      'Open the ODRL policies the catalog offers (static/catalog/05 and 06), change a constraint and publish again.',
+      'Open the ODRL policies the catalog offers (extensions/demo/payloads/05 and 06), change a constraint and publish again.',
       'Run the eight-step Dataspace Protocol negotiation between bob and alice and watch every state change.',
     ],
-    commands: ['./eunomia catalog populate alice --force', './eunomia e2e --consumer bob --provider alice -v'],
+    commands: ['./eunomia demo publish alice --force', './eunomia demo test --consumer bob --provider alice -v'],
     result: 'A FINALIZED agreement between the two agents, with its id.',
   },
   {
@@ -79,7 +79,7 @@ export const milestones: Milestone[] = [
       'Pull every robot through alice’s data plane: she adds the factory token, bob never sees it. Then stream the robot events live.',
       'Publish the factory in bob too and run it the other way round: every agent provides and consumes.',
     ],
-    commands: ['./eunomia demo events --consumer bob --provider alice', './eunomia catalog populate bob', './eunomia e2e --consumer alice --provider bob'],
+    commands: ['./eunomia demo events --consumer bob --provider alice', './eunomia demo publish bob', './eunomia demo test --consumer alice --provider bob'],
     result: 'Real data flowing between two sovereign agents, in both directions, in under an hour.',
   },
 ];

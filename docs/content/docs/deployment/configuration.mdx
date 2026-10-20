@@ -29,8 +29,8 @@ The CLI reads `.env` at the repo root (copy [`.env.example`](https://github.com/
 | `EUNOMIA_PREFIX` | `eunomia` | prefix of every local container and compose project |
 | `EUNOMIA_HTTP_PORTS`, `EUNOMIA_DB_PORTS` | `1600-1999`, `15400-15999` | where local instances take their ports |
 | `EUNOMIA_FACTORY_STATIC_PORT`, `…_DYNAMIC_PORT`, `…_KEYCLOAK_PORT` | `1210`, `1220`, `1230` | host ports of the demo factory |
-| `EUNOMIA_SINK_PORT` | `1290` | where `e2e` and `demo events` receive pushed events |
-| `EUNOMIA_PUSH_TIMEOUT` | `30` | seconds `e2e` waits for a pushed event |
+| `EUNOMIA_SINK_PORT` | `1290` | where `demo test` and `demo events` receive pushed events |
+| `EUNOMIA_PUSH_TIMEOUT` | `30` | seconds `demo test` waits for a pushed event |
 | `EUNOMIA_CONTAINER` | | `1`: run the CLI in its container even with Python on the machine |
 | `DOCKER_FACTORY_STATIC_URL`, … | `http://host.docker.internal:<port>` | where agents reach the demo factory, if it runs elsewhere |
 | `<NAME>_SSH_PASS` | | password for `eunomia restart` of a remote instance, if its server needs one |
@@ -64,6 +64,6 @@ A change to a template applies to instances created afterwards. To change one ex
 
 Each local instance generates its own key pair and certificate under `instances/<name>/vault/` when it is created. The repository's `vault/agent/` and `vault/heimdall/` hold the example files for production (and the database credentials local instances copy): keys, self-signed certificates valid until June 2027, and Vault TLS placeholders.
 
-## Catalog: static/catalog
+## The demo catalog: extensions/demo/payloads
 
-The JSON payloads `./eunomia catalog populate <agent>` sends to that agent, in order. `__PLACEHOLDERS__` are filled with the ids the agent returns and the factory URLs. See [The demo factory](/docs/components/demo-factory#in-the-catalog).
+The JSON payloads `./eunomia demo publish <agent>` sends to that agent, in order. `__PLACEHOLDERS__` are filled with the ids the agent returns and the factory URLs. See [The demo factory](/docs/components/demo-factory#in-the-catalog).

@@ -5,7 +5,7 @@ description: "What `eunomia onboard` does for an agent, step by step, and the AP
 
 <Onboarding />
 
-`./eunomia agent add` onboards a new agent with the authority; `./eunomia onboard <agent> [--authority <name>]` does it for an existing one. Steps 1 to 3 happen once per agent and authority; step 4, connecting, happens per pair of agents, with `./eunomia connect` or on the fly in `e2e` and `demo`. Each step checks first and skips what is already done, so it is safe to repeat.
+`./eunomia agent add` onboards a new agent with the authority; `./eunomia onboard <agent> [--authority <name>]` does it for an existing one. Steps 1 to 3 happen once per agent and authority; step 4, the GNAP login, happens per pair of agents, with `./eunomia login` or on the fly in `e2e` and `demo`. Each step checks first and skips what is already done, so it is safe to repeat.
 
 ## 1. Wallets
 
@@ -60,7 +60,7 @@ POST /api/v1/peer-connection/connect
 }
 ```
 
-alice verifies bob's credentials and, when he holds what she asks for, approves the connection: `GET /api/v1/peer-connection/request/all` on bob shows it `Approved`, and `GET /api/v1/mates/all` shows alice with a token. Without the label credential it stays `Pending`. The token works one way: for alice to browse bob's catalog, she connects to him too (`eunomia connect bob alice --both`).
+alice verifies bob's credentials and, when he holds what she asks for, approves the connection: `GET /api/v1/peer-connection/request/all` on bob shows it `Approved`, and `GET /api/v1/mates/all` shows alice with a token. Without the label credential it stays `Pending`. Once approved, the grant works both ways: alice also holds a token for bob, so either can browse the other's catalog and negotiate with it. `eunomia login bob alice` runs this step and prints the token each side holds.
 
 ## Addresses
 

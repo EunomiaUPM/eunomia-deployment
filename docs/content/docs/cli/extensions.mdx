@@ -1,0 +1,129 @@
+---
+title: "Extensions"
+description: "What data the agents share, and how you test and explore it, comes from extensions: the demo is one, your project is another."
+---
+
+The core of `eunomia` runs a data space: authorities and agents, their identities, credentials and GNAP logins, on this machine or on servers. **What** the agents share is not part of it. That comes from extensions.
+
+The demo factory is the first one. Everything about it lives in `extensions/demo/` and under `eunomia demo`:
+
+```bash
+./eunomia demo up                                    # its backend
+./eunomia demo publish alice                         # into an agent's catalog
+./eunomia demo test --consumer bob --provider alice  # its end-to-end test
+./eunomia demo notebook alice bob                    # its notebooks
+```
+
+A real project is another extension, kept in its own repository and loaded from there. Nothing of it has to enter this one.
+
+## Where extensions come from
+
+| From | Loaded |
+| --- | --- |
+| `extensions/` in this repository | always (the demo) |
+| `EUNOMIA_EXTENSIONS` | paths separated like `PATH` (`:` on Linux and macOS, `;` on Windows), each one an extension directory or a directory of them. Set it in the shell or in `.env` |
+
+```bash
+# .env
+EUNOMIA_EXTENSIONS=/home/me/my-project/extension
+```
+
+Each extension becomes a command group named after it: `eunomia <name> …`. Two extensions with the same name, or one named like a core command (`status`, `catalog`…), stop the CLI with a message saying which.
+
+## Extension points
+
+An extension is a directory with an `__init__.py` that defines `extension`, an instance of a subclass of `Extension`. Every point is optional.
+
+| Point | What it gives the extension | What the core does with it |
+| --- | --- | --- |
+| `commands(parser, actions)` | its own actions: `eunomia <name> <action>` | adds them to the CLI |
+| `services()` | the compose stacks it runs, as `ComposeService` | `stop`, `down`, `status`, `logs <service>`, `images` and `doctor` take them into account; new instances keep off their ports |
+| `test(consumer, provider, args)` | its end-to-end test between two agents | adds `eunomia <name> test --consumer A --provider B`, plus the options of `test_arguments(parser)` |
+| `notebooks()` | its notebooks, as a `NotebookSet` | adds `eunomia <name> notebook <provider> <consumer>`, with independent sessions per pair, `--execute` and `--fresh` ([Notebooks](/docs/guides/notebooks)) |
+
+An action is an argparse parser with `set_defaults(run=...)`: a function that takes the parsed arguments and returns the exit code.
+
+## What an extension may use
+
+Everything an extension needs comes from `eunomia.ext`. The rest of the CLI can change without notice.
+
+| Name | What |
+| --- | --- |
+| `Extension`, `ComposeService`, `NotebookSet` | the extension points above |
+| `agent(name)` | a registered agent, local or remote, as a `Peer`: `name`, `url` (from here), `docker_url` (from the containers) |
+| `add_exchange_roles(parser)` | `--consumer` and `--provider`, named as every command names them |
+| `catalog.Catalog(url)` | an agent's catalog API: main catalog and data service, datasets, distributions, connector templates (reused when one fits) and instances |
+| `exchange` | a DSP exchange between two agents: `Session` (discovery with the GNAP login, negotiation step by step, transfers, suspend, resume, complete), `offer`, `dataplane_url`, `EventSink` for pushed data |
+| `log`, `http`, `settings` | the CLI's output, a small HTTP client, and `local_host()`, `for_humans()`, `port()` |
+
+## A minimal extension
+
+```text
+my-extension/
+├── __init__.py          # defines `extension`
+├── publish.py
+├── payloads/            # dataset, distributions, policies, connectors
+└── service/
+    └── docker-compose.yaml
+```
+
+```python title="my-extension/__init__.py"
+from pathlib import Path
+
+from eunomia.ext import ComposeService, Extension, agent, exchange, log
+
+from . import publish
+
+HERE = Path(__file__).resolve().parent
+
+
+class Weather(Extension):
+    name = "weather"
+    help = "weather stations, shared through the data space"
+
+    def commands(self, parser, actions):
+        p = actions.add_parser("publish", help="publish the stations in an agent's catalog")
+        p.add_argument("agent")
+        p.set_defaults(run=lambda args: publish.publish(agent(args.agent)))
+
+    def services(self):
+        return [ComposeService("weather", HERE / "service" / "docker-compose.yaml", ports=(1510,), start_hint="eunomia weather up")]
+
+    def test(self, consumer, provider, args):
+        session = exchange.Session(consumer, provider, empty_hint=f"eunomia weather publish {provider.name}")
+        dataset = exchange.pick_dataset(session.discover(), "Weather", is_default=False)
+        agreement = session.negotiate(exchange.offer(dataset["hasPolicy"][0], dataset["@id"]))
+        pids = session.request_transfer(agreement, "HTTP_PULL")
+        url = exchange.dataplane_url(session.start(pids), provider)
+        # ...check what comes through url, then:
+        session.complete(pids)
+        log.ok("WEATHER TEST PASSED")
+        return 0
+
+
+extension = Weather()
+```
+
+```bash
+EUNOMIA_EXTENSIONS=$PWD/my-extension ./eunomia weather publish alice
+EUNOMIA_EXTENSIONS=$PWD/my-extension ./eunomia weather test --consumer bob --provider alice
+```
+
+The extension's modules import each other relatively (`from . import publish`): it is loaded as the package `eunomia_ext_<name>`.
+
+## The demo, as a worked example
+
+`extensions/demo/` uses every point, and is the one to copy:
+
+| File | Point |
+| --- | --- |
+| `__init__.py` | the `Demo` extension: actions `up`, `down`, `publish`, `robots`, `events`, `token` |
+| `factory.py` | the factory's URLs, ports and `ComposeService` |
+| `service/` | the factory itself: a Go service, its compose file, its OpenAPI spec |
+| `publish.py`, `payloads/` | what `demo publish` creates in a catalog |
+| `e2e.py` | `demo test`: the whole exchange, plus the checks only the demo can make (the robots come through the dataplane, the factory refuses the same call without a token) |
+| `consume.py` | `demo robots` and `demo events`: the exchange as an application uses it |
+| `notebooks/` | `02_catalog`, `03_pull_flow`, `04_push_flow`; `01_auth` comes from the core |
+| `tests/` | its unit tests, which run with the core ones |
+
+[Sharing your own data](/docs/guides/extending) walks through building an extension of your own, piece by piece.
