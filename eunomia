@@ -28,10 +28,10 @@ fi
 
 TTY=""
 [ -t 0 ] && [ -t 1 ] && TTY="-t"
-# e2e and demo listen for the pushed events: publish that port.
+# An extension's test and events actions listen for pushed data: publish that port.
 PORTS=""
-case "$1" in
-    e2e|demo) PORTS="-p ${EUNOMIA_SINK_PORT:-1290}:${EUNOMIA_SINK_PORT:-1290}" ;;
+case "$2" in
+    test|events) PORTS="-p ${EUNOMIA_SINK_PORT:-1290}:${EUNOMIA_SINK_PORT:-1290}" ;;
 esac
 
 # The checkout is mounted at the same path as on the host: the compose files

@@ -1,4 +1,4 @@
-"""Where things live: repo paths, the demo backend, the prod stacks, settings.
+"""Where things live: repo paths, the prod stacks, settings.
 
 eunomia is a hypervisor of instances: authorities and agents. Local ones run
 on this machine from the templates in deployment/instances/; remote ones are
@@ -20,8 +20,6 @@ DEPLOYMENT_DIR = REPO_ROOT / "deployment"
 TEMPLATES_DIR = DEPLOYMENT_DIR / "instances"
 VAULT_DIR = REPO_ROOT / "vault"
 CONFIG_DIR = REPO_ROOT / "static" / "config"
-CATALOG_DIR = REPO_ROOT / "static" / "catalog"
-DEMO_DIR = REPO_ROOT / "services" / "demo-factory"
 INSTANCES_DIR = REPO_ROOT / "instances"
 VERSIONS_FILE = REPO_ROOT / "versions.env"
 ENV_FILE = REPO_ROOT / ".env"
@@ -92,18 +90,6 @@ class Stack:
     ports: Tuple[int, ...]
 
 
-def demo_ports() -> Tuple[int, int, int]:
-    return (
-        port("EUNOMIA_FACTORY_STATIC_PORT", 1210),
-        port("EUNOMIA_FACTORY_DYNAMIC_PORT", 1220),
-        port("EUNOMIA_FACTORY_KEYCLOAK_PORT", 1230),
-    )
-
-
-def demo_stack() -> Stack:
-    return Stack("demo", DEMO_DIR / "docker-compose.yaml", demo_ports())
-
-
 def prod_stacks() -> Dict[str, Stack]:
     """One node per server: `eunomia prod up agent|authority` on that server."""
     d = DEPLOYMENT_DIR / "prod"
@@ -157,55 +143,6 @@ def versions() -> Dict[str, str]:
     if not VERSIONS_FILE.is_file():
         raise log.fail(f"{VERSIONS_FILE.name} is missing from {REPO_ROOT}. It pins the EUNOMIA images.")
     return parse_dotenv(VERSIONS_FILE.read_text())
-
-
-# ---------------------------------------------------------------------------
-# Demo backend (the factory an agent can share)
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class Demo:
-    """The factory's URLs, seen from this process and from the agents.
-
-    The docker_* ones go into the connector instances: the agent that shares
-    the factory is the one that calls it, from inside its container.
-    """
-
-    static_api: str
-    dynamic_api: str
-    keycloak: str
-    docker_static_api: str
-    docker_dynamic_api: str
-    docker_keycloak: str
-
-    # Demo credentials, the same ones imported with the Keycloak realm.
-    realm: str = "factory"
-    client_id: str = "factory-client"
-    client_secret: str = "factory-secret"
-    username: str = "testuser"
-    password: str = "password"
-
-    @property
-    def token_url(self) -> str:
-        return f"{self.keycloak}/realms/{self.realm}/protocol/openid-connect/token"
-
-
-def demo() -> Demo:
-    host = local_host()
-    static, dynamic, keycloak = demo_ports()
-
-    def url(name: str, default: str) -> str:
-        return (os.environ.get(name) or default).rstrip("/")
-
-    return Demo(
-        url("FACTORY_STATIC_URL", f"http://{host}:{static}"),
-        url("FACTORY_DYNAMIC_URL", f"http://{host}:{dynamic}"),
-        url("FACTORY_KEYCLOAK_URL", f"http://{host}:{keycloak}"),
-        url("DOCKER_FACTORY_STATIC_URL", f"http://host.docker.internal:{static}"),
-        url("DOCKER_FACTORY_DYNAMIC_URL", f"http://host.docker.internal:{dynamic}"),
-        url("DOCKER_FACTORY_KEYCLOAK_URL", f"http://host.docker.internal:{keycloak}"),
-    )
 
 
 def optional(name: str) -> Optional[str]:

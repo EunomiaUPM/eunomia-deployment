@@ -54,7 +54,8 @@ def _walk(parser: argparse.ArgumentParser, prefix: str, out: list) -> None:
 
 def main() -> None:
     out = [HEADER]
-    _walk(build_parser(), "", out)
+    # Only the extensions in this repo: the reference documents what ships with it.
+    _walk(build_parser(builtin_extensions_only=True), "", out)
     OUT.write_text("".join(out))
     print(f"wrote {OUT}")
 

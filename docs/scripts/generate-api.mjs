@@ -28,7 +28,7 @@ const sections = {
 const inputs = {
   agent: '../static/specs/agent/openapi/merged_openapi.json',
   authority: '../static/specs/heimdall/openapi/openapi.json',
-  'demo-factory': '../services/demo-factory/specs/openapi/robots.yaml',
+  'demo-factory': '../extensions/demo/service/specs/openapi/robots.yaml',
 };
 
 for (const [id, path] of Object.entries(inputs)) {

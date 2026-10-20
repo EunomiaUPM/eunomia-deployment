@@ -1,0 +1,198 @@
+/*
+ * JupyterLab dressed like the docs (docs/app/global.css): Geist and Geist
+ * Mono, mist paper and indigo ink in the light theme, night indigo with sky
+ * and violet in the dark one, the sky → violet → magenta gradient on titles.
+ *
+ * `eunomia <extension> notebook` loads it (JUPYTER_CONFIG_DIR=notebooks/jupyter,
+ * --custom-css). The selectors carry the theme attribute so they win over
+ * the theme's own :root variables, which load after this file.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
+
+body[data-jp-theme-light] {
+  --jp-ui-font-family: Geist, ui-sans-serif, system-ui, sans-serif;
+  --jp-content-font-family: Geist, ui-sans-serif, system-ui, sans-serif;
+  --jp-code-font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --jp-code-font-family-default: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --jp-content-font-size1: 15px;
+  --jp-content-line-height: 1.65;
+  --jp-code-font-size: 13px;
+  --jp-border-radius: 8px;
+}
+
+/* Light: mist paper, indigo ink, violet primary */
+body[data-jp-theme-light='true'] {
+  --eu-gradient: linear-gradient(100deg, #2b86c5 0%, #6d4dff 45%, #d24ee0 100%);
+  --jp-layout-color0: #f8fafc;
+  --jp-layout-color1: #f8fafc;
+  --jp-layout-color2: #eef1f6;
+  --jp-layout-color3: #d7ddea;
+  --jp-content-font-color0: #14132a;
+  --jp-content-font-color1: #191834;
+  --jp-content-font-color2: #5a5a72;
+  --jp-ui-font-color0: #14132a;
+  --jp-ui-font-color1: #191834;
+  --jp-ui-font-color2: #5a5a72;
+  --jp-border-color0: rgba(96, 96, 159, 0.28);
+  --jp-border-color1: rgba(96, 96, 159, 0.2);
+  --jp-border-color2: rgba(96, 96, 159, 0.14);
+  --jp-brand-color0: #4322c3;
+  --jp-brand-color1: #5d39ef;
+  --jp-brand-color2: #9f89f5;
+  --jp-brand-color3: #e1dafb;
+  --jp-content-link-color: #461ded;
+  --jp-cell-editor-background: #ffffff;
+  --jp-cell-editor-border-color: rgba(96, 96, 159, 0.18);
+  --jp-cell-editor-active-background: #ffffff;
+  --jp-cell-prompt-not-active-font-color: #8d8da5;
+  --jp-cell-inprompt-font-color: #5c3cdd;
+  --jp-cell-outprompt-font-color: #da2fa1;
+  --jp-notebook-select-background: #ece8fc;
+  --jp-notebook-multiselected-color: #ece8fc;
+  --jp-rendermime-table-row-background: #f1f4f8;
+  --jp-rendermime-table-row-hover-background: #ece8fc;
+  --eu-inline-code-bg: #ece8fc;
+  --eu-inline-code-fg: #341b98;
+}
+
+/* Dark: night indigo, sky ink, violet accent */
+body[data-jp-theme-light='false'] {
+  --eu-gradient: linear-gradient(100deg, #9dd5f2 0%, #8b6cff 50%, #e86cf0 100%);
+  --jp-layout-color0: #070718;
+  --jp-layout-color1: #070718;
+  --jp-layout-color2: #131226;
+  --jp-layout-color3: #21203c;
+  --jp-layout-color4: #333253;
+  --jp-content-font-color0: #f8fafc;
+  --jp-content-font-color1: #eaf0f6;
+  --jp-content-font-color2: #9da8be;
+  --jp-ui-font-color0: #f8fafc;
+  --jp-ui-font-color1: #eaf0f6;
+  --jp-ui-font-color2: #9da8be;
+  --jp-border-color0: rgba(173, 194, 235, 0.2);
+  --jp-border-color1: rgba(173, 194, 235, 0.14);
+  --jp-border-color2: rgba(173, 194, 235, 0.1);
+  --jp-brand-color0: #bce2f5;
+  --jp-brand-color1: #9dd5f1;
+  --jp-brand-color2: #896ef7;
+  --jp-brand-color3: rgba(110, 82, 224, 0.25);
+  --jp-content-link-color: #9dd5f1;
+  --jp-cell-editor-background: #0e0e20;
+  --jp-cell-editor-border-color: rgba(173, 194, 235, 0.12);
+  --jp-cell-editor-active-background: #100f24;
+  --jp-cell-prompt-not-active-font-color: #667799;
+  --jp-cell-inprompt-font-color: #9dd5f1;
+  --jp-cell-outprompt-font-color: #ef8fef;
+  --jp-notebook-select-background: rgba(110, 82, 224, 0.16);
+  --jp-notebook-multiselected-color: rgba(110, 82, 224, 0.16);
+  --jp-rendermime-table-row-background: #131226;
+  --jp-rendermime-table-row-hover-background: rgba(110, 82, 224, 0.16);
+  --eu-inline-code-bg: rgba(110, 82, 224, 0.16);
+  --eu-inline-code-fg: #cec2ff;
+}
+
+/* Markdown cells read like a docs page */
+.jp-RenderedMarkdown h1 {
+  font-size: 2.1em;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  margin-top: 0.4em;
+  background-image: var(--eu-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.jp-RenderedMarkdown h2 {
+  font-size: 1.35em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-top: 1.4em;
+}
+.jp-RenderedMarkdown h3 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.jp-RenderedMarkdown code {
+  font-family: var(--jp-code-font-family);
+  font-size: 0.88em;
+  padding: 0.12em 0.4em;
+  border-radius: 6px;
+  background: var(--eu-inline-code-bg);
+  color: var(--eu-inline-code-fg);
+}
+.jp-RenderedMarkdown pre {
+  border-radius: 10px;
+  border: 1px solid var(--jp-border-color2);
+  background: var(--jp-layout-color2);
+  padding: 12px 14px;
+}
+.jp-RenderedMarkdown pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+.jp-RenderedMarkdown table {
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+.jp-RenderedMarkdown th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--jp-content-font-color2);
+  border-bottom: 1px solid var(--jp-border-color1);
+}
+.jp-RenderedMarkdown td,
+.jp-RenderedMarkdown th {
+  text-align: left;
+  padding: 6px 16px 6px 0;
+}
+.jp-RenderedMarkdown tr {
+  background: transparent !important;
+}
+.jp-RenderedMarkdown td {
+  border-bottom: 1px solid var(--jp-border-color2);
+}
+
+/* Code cells: rounded editors, a violet edge on the active one */
+.jp-Notebook .jp-Cell .jp-InputArea-editor {
+  border-radius: 10px;
+}
+.jp-Notebook .jp-Cell.jp-mod-active .jp-Collapser {
+  background: var(--eu-gradient);
+  border-radius: 2px;
+}
+.jp-Notebook .jp-Cell.jp-mod-selected {
+  background: transparent;
+}
+
+/* Plain text outputs (print) in the mono font */
+.jp-OutputArea-output pre {
+  font-family: var(--jp-code-font-family);
+}
+
+/* EUNOMIA at the foot of the file browser, in the ink of the theme (as in the docs' navbar) */
+.jp-FileBrowser-Panel::after {
+  content: '';
+  flex: 0 0 auto;
+  height: 22px;
+  margin: 0 12px;
+  padding: 14px 0 12px;
+  border-top: 1px solid var(--jp-border-color2);
+  background: url('eunomia_logo_lg_dark.svg') no-repeat 4px center / auto 22px;
+  opacity: 0.9;
+}
+body[data-jp-theme-light='false'] .jp-FileBrowser-Panel::after {
+  background-image: url('eunomia_logo_lg_light.svg');
+}
+
+/* Prompts in the mono font, quieter */
+.jp-InputPrompt,
+.jp-OutputPrompt {
+  font-family: var(--jp-code-font-family);
+  font-size: 11.5px;
+}

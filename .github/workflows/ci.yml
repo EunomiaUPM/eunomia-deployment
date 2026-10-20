@@ -25,12 +25,12 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: services/demo-factory
+        working-directory: extensions/demo/service
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: services/demo-factory/go.mod
+          go-version-file: extensions/demo/service/go.mod
       - run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
       - run: go vet ./...
       - run: go build ./...
@@ -64,7 +64,7 @@ jobs:
           set -e
           # Prod reads the real env files an operator writes; the examples stand in.
           for f in static/envs/*/*.env.example; do cp "$f" "${f%.example}"; done
-          for f in deployment/standalone/*.yaml deployment/prod/*.yaml services/demo-factory/docker-compose.yaml; do
+          for f in deployment/standalone/*.yaml deployment/prod/*.yaml extensions/*/service/docker-compose.yaml; do
             echo "== $f"
             docker compose --env-file versions.env -f "$f" config -q
           done
@@ -90,12 +90,14 @@ jobs:
       - run: ./eunomia demo up
       - name: bob negotiates for the catalog of alice
         run: |
-          ./eunomia catalog populate alice
-          ./eunomia e2e --consumer bob --provider alice
+          ./eunomia demo publish alice
+          ./eunomia demo test --consumer bob --provider alice
       - name: and the other way round
         run: |
-          ./eunomia catalog populate bob
-          ./eunomia e2e --consumer alice --provider bob --no-suspend
+          ./eunomia demo publish bob
+          ./eunomia demo test --consumer alice --provider bob --no-suspend
+      - name: The demo notebooks run headless
+        run: ./eunomia demo notebook alice bob --execute
       - name: Logs on failure
         if: failure()
         run: |

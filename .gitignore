@@ -34,11 +34,22 @@ build/
 dist/
 
 # Go (demo factory, local builds and air)
-services/demo-factory/tmp/
-services/demo-factory/eunomia-demo-factory
+extensions/demo/service/tmp/
+extensions/demo/service/eunomia-demo-factory
 
 # Node
 node_modules/
 
 # macOS
 .DS_Store
+
+# Notebooks: the Jupyter virtualenv and the executed copies
+notebooks/.venv/
+notebooks/.runs/
+notebooks/sessions/
+.ipynb_checkpoints/
+# Whatever Jupyter writes into the theme's config dir, apart from the theme
+notebooks/jupyter/*
+!notebooks/jupyter/custom/
+!notebooks/jupyter/labconfig/
+!notebooks/jupyter/jupyter_server_config.py

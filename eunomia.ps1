@@ -59,7 +59,8 @@ $hostPath = "/run/desktop/mnt/host/$drive" + ($Root.Substring(2) -replace "\\", 
 
 $dockerArgs = @("run", "--rm", "-i")
 if (-not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected) { $dockerArgs += "-t" }
-if ($args.Count -gt 0 -and @("e2e", "demo") -contains $args[0]) {
+# An extension's test and events actions listen for pushed data: publish that port.
+if ($args.Count -gt 1 -and @("test", "events") -contains $args[1]) {
     $sink = if ($env:EUNOMIA_SINK_PORT) { $env:EUNOMIA_SINK_PORT } else { "1290" }
     $dockerArgs += @("-p", "${sink}:${sink}", "-e", "EUNOMIA_SINK_PORT=$sink")
 }

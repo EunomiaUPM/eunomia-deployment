@@ -27,10 +27,12 @@ def resolve(ref: str, values: Dict[str, str]) -> str:
 
 
 def compose_files() -> "list":
-    """Every compose file eunomia runs: instance templates, prod and the demo."""
+    """Every compose file eunomia runs: instance templates, prod and the extensions' services."""
+    from .. import extensions
+
     files = sorted(settings.TEMPLATES_DIR.glob("docker-compose.*.yaml"))
     files += [s.compose for s in settings.prod_stacks().values()]
-    return files + [settings.demo_stack().compose]
+    return files + [svc.compose_file for _, svc in extensions.services()]
 
 
 def pinned() -> Dict[str, Set[str]]:

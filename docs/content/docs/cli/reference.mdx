@@ -110,7 +110,7 @@ options:
 
 ## `eunomia stop`
 
-Stop local instances, keeping their data (default: all, and the demo).
+Stop local instances, keeping their data (default: all, and the extensions' services).
 
 ```text
 eunomia stop [-h] [name ...]
@@ -139,7 +139,7 @@ options:
 
 ## `eunomia down`
 
-Remove every local instance and the demo factory.
+Remove every local instance and the extensions' services.
 
 ```text
 eunomia down [-h] [-y] [-n]
@@ -152,7 +152,7 @@ options:
 
 ## `eunomia status`
 
-Every instance and the demo factory, or one instance in detail.
+Every instance and the extensions' services, or one instance in detail.
 
 ```text
 eunomia status [-h] [name]
@@ -166,13 +166,13 @@ options:
 
 ## `eunomia logs`
 
-Logs of an instance, of the demo factory or of any container.
+Logs of an instance, of an extension's service or of any container.
 
 ```text
 eunomia logs [-h] [-f] [--tail TAIL] target [services ...]
 
 positional arguments:
-  target        an instance name, 'demo', or a container name
+  target        an instance name, a service name ('demo'), or a container name
   services      limit to these compose services
 
 options:
@@ -197,40 +197,24 @@ options:
                         default: the only authority there is
 ```
 
-## `eunomia connect`
+## `eunomia login`
 
-GNAP handshake: give one agent a token for another.
+GNAP login between two agents: once approved, each holds a token for the other.
 
 ```text
-eunomia connect [-h] [--both] agent to
+eunomia login [-h] agent other
 
 positional arguments:
-  agent       the agent that connects
-  to          the agent it connects to
+  agent       the agent that asks for the grant
+  other       the agent that verifies its credentials and approves it
 
 options:
   -h, --help  show this help message and exit
-  --both      connect them the other way round too
 ```
 
 ## `eunomia catalog`
 
 An agent's catalog.
-
-### `eunomia catalog populate`
-
-Load the demo factory dataset, policies and connectors into an agent.
-
-```text
-eunomia catalog populate [-h] [--force] agent
-
-positional arguments:
-  agent
-
-options:
-  -h, --help  show this help message and exit
-  --force     create them again even if they exist
-```
 
 ### `eunomia catalog show`
 
@@ -241,95 +225,6 @@ eunomia catalog show [-h] agent
 
 positional arguments:
   agent
-
-options:
-  -h, --help  show this help message and exit
-```
-
-## `eunomia e2e`
-
-Two agents: negotiate, then pull and push data end to end.
-
-```text
-eunomia e2e [-h] --consumer AGENT --provider AGENT [--dataset DATASET] [--list-datasets]
-                   [--keep-open] [--no-suspend] [--no-data-pull] [--no-push] [-v]
-
-options:
-  -h, --help         show this help message and exit
-  --consumer AGENT   the agent that negotiates and receives
-  --provider AGENT   the agent whose catalog is used
-  --dataset DATASET  substring of the dataset title (default: the demo factory dataset)
-  --list-datasets    list the provider's catalog and exit
-  --keep-open        leave the pull transfer STARTED
-  --no-suspend       skip the suspend/resume leg
-  --no-data-pull     skip the data pull through the proxy
-  --no-push          skip the push transfer
-  -v, --verbose      dump every request and response
-```
-
-## `eunomia demo`
-
-The demo factory: run it, and use it through the data space.
-
-### `eunomia demo up`
-
-Start the demo factory.
-
-```text
-eunomia demo up [-h] [--build]
-
-options:
-  -h, --help  show this help message and exit
-  --build     rebuild its image
-```
-
-### `eunomia demo down`
-
-Remove the demo factory and its data.
-
-```text
-eunomia demo down [-h]
-
-options:
-  -h, --help  show this help message and exit
-```
-
-### `eunomia demo robots`
-
-Negotiate and pull the robots, printed as JSON.
-
-```text
-eunomia demo robots [-h] --consumer AGENT --provider AGENT [-v]
-
-options:
-  -h, --help        show this help message and exit
-  --consumer AGENT  the agent that negotiates and receives
-  --provider AGENT  the agent whose catalog is used
-  -v, --verbose
-```
-
-### `eunomia demo events`
-
-Negotiate and print the robot events as they are pushed.
-
-```text
-eunomia demo events [-h] --consumer AGENT --provider AGENT [-n COUNT] [-v]
-
-options:
-  -h, --help            show this help message and exit
-  --consumer AGENT      the agent that negotiates and receives
-  --provider AGENT      the agent whose catalog is used
-  -n COUNT, --count COUNT
-                        stop after this many events (default: Ctrl+C)
-  -v, --verbose
-```
-
-### `eunomia demo token`
-
-A Keycloak token to call the factory API directly.
-
-```text
-eunomia demo token [-h]
 
 options:
   -h, --help  show this help message and exit
@@ -410,4 +305,130 @@ eunomia images [-h] [--check]
 options:
   -h, --help  show this help message and exit
   --check     query the registries
+```
+
+## `eunomia demo`
+
+The demo factory: run it, publish it from an agent, test it and use it through the data space.
+
+### `eunomia demo up`
+
+Start the demo factory.
+
+```text
+eunomia demo up [-h] [--build]
+
+options:
+  -h, --help  show this help message and exit
+  --build     rebuild its image
+```
+
+### `eunomia demo down`
+
+Remove the demo factory and its data.
+
+```text
+eunomia demo down [-h]
+
+options:
+  -h, --help  show this help message and exit
+```
+
+### `eunomia demo publish`
+
+Publish the factory in an agent's catalog: dataset, policies, connectors.
+
+```text
+eunomia demo publish [-h] [--force] agent
+
+positional arguments:
+  agent
+
+options:
+  -h, --help  show this help message and exit
+  --force     publish it again even if it is there
+```
+
+### `eunomia demo robots`
+
+Negotiate and pull the robots, printed as JSON.
+
+```text
+eunomia demo robots [-h] --consumer AGENT --provider AGENT [-v]
+
+options:
+  -h, --help        show this help message and exit
+  --consumer AGENT  the agent that negotiates and receives
+  --provider AGENT  the agent whose catalog is used
+  -v, --verbose
+```
+
+### `eunomia demo events`
+
+Negotiate and print the robot events as they are pushed.
+
+```text
+eunomia demo events [-h] --consumer AGENT --provider AGENT [-n COUNT] [-v]
+
+options:
+  -h, --help            show this help message and exit
+  --consumer AGENT      the agent that negotiates and receives
+  --provider AGENT      the agent whose catalog is used
+  -n COUNT, --count COUNT
+                        stop after this many events (default: Ctrl+C)
+  -v, --verbose
+```
+
+### `eunomia demo token`
+
+A Keycloak token to call the factory API directly.
+
+```text
+eunomia demo token [-h]
+
+options:
+  -h, --help  show this help message and exit
+```
+
+### `eunomia demo test`
+
+The demo extension's end-to-end test between two agents.
+
+```text
+eunomia demo test [-h] --consumer AGENT --provider AGENT [--dataset DATASET]
+                         [--list-datasets] [--keep-open] [--no-suspend] [--no-data-pull]
+                         [--no-push] [-v]
+
+options:
+  -h, --help         show this help message and exit
+  --consumer AGENT   the agent that negotiates and receives
+  --provider AGENT   the agent whose catalog is used
+  --dataset DATASET  substring of the dataset title (default: the demo factory dataset)
+  --list-datasets    list the provider's catalog and exit
+  --keep-open        leave the pull transfer STARTED
+  --no-suspend       skip the suspend/resume leg
+  --no-data-pull     skip the data pull through the proxy
+  --no-push          skip the push transfer
+  -v, --verbose      dump every request and response
+```
+
+### `eunomia demo notebook`
+
+The notebooks, with one agent as the provider and another as the consumer.
+
+```text
+eunomia demo notebook [-h] [--execute] [--flow {pull,push}] [--no-browser] [--fresh]
+                             provider consumer
+
+positional arguments:
+  provider            the agent that publishes
+  consumer            the agent that negotiates and receives
+
+options:
+  -h, --help          show this help message and exit
+  --execute           run the flows headless instead of opening JupyterLab
+  --flow {pull,push}  with --execute, only this flow (repeatable)
+  --no-browser        start JupyterLab without opening a browser
+  --fresh             copy every source notebook into the session again, dropping its outputs and
+                      edits
 ```

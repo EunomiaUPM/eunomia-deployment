@@ -5,9 +5,9 @@
 #   keycloak     :1230  realm "factory", client factory-client / factory-secret,
 #                       user testuser / password (demo credentials)
 #
-# `eunomia up` starts it with the provider. The provider agent reaches it at
-# http://host.docker.internal:<port>, the connector instances in static/catalog/
-# point there.
+# `eunomia demo up` starts it. The agent that publishes it reaches it at
+# http://host.docker.internal:<port>; the connector instances in
+# extensions/demo/payloads/ point there.
 
 name: ${EUNOMIA_PREFIX:-eunomia}-demo-factory
 

@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import sys
 
-from .. import compose, log, settings
+from .. import compose, extensions, log, settings
 from . import images as images_cmd
 
 
@@ -73,18 +73,18 @@ def _versions(r: Report) -> None:
 
 
 def _ports(r: Report) -> None:
-    demo_ports = list(settings.demo_ports())
-    busy = compose.busy_ports(demo_ports)
-    demo_up = compose.run(["docker", "ps", "-q", "--filter", f"name=^/{settings.container_prefix()}factory-"], capture=True, check=False).strip()
-    if not busy:
-        r.ok(f"Demo factory ports free: {', '.join(map(str, demo_ports))}")
-    elif demo_up:
-        r.ok("Demo factory ports in use by the demo factory itself")
-    else:
-        r.bad(
-            f"Demo factory ports {', '.join(map(str, busy))} are in use by another program",
-            "Free them, or move them in .env (EUNOMIA_FACTORY_*_PORT, see .env.example).",
-        )
+    for ext_name, svc in extensions.services():
+        label = svc.label or svc.name
+        busy = compose.busy_ports(svc.ports)
+        if not busy:
+            r.ok(f"{label} ports free: {', '.join(map(str, svc.ports))}" if svc.ports else f"{label}: no ports to check")
+        elif svc.is_running():
+            r.ok(f"{label} ports in use by the {label} itself")
+        else:
+            r.bad(
+                f"{label} ports {', '.join(map(str, busy))} are in use by another program",
+                f"Free them, or move them in .env (see the {ext_name} extension's settings in .env.example).",
+            )
     for label, (lo, hi) in (("HTTP", settings.http_ports()), ("Postgres", settings.db_ports())):
         sample = list(range(lo, min(hi, lo + 40) + 1))
         free = [p for p in sample if not compose.port_in_use(p)]

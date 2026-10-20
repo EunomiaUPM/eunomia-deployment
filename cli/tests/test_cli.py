@@ -1,19 +1,27 @@
 """Unit tests for the parts that need no running stack.
 
     python3 -m unittest discover -s cli/tests
+
+The built-in extensions' own tests (extensions/*/tests/) run with these: see
+test_extension_suites.py.
 """
 
+import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from eunomia import settings  # noqa: E402
+from eunomia import extensions, log, notebooks, settings  # noqa: E402
 from eunomia.cli import build_parser  # noqa: E402
-from eunomia.commands import catalog, images, instances, restart  # noqa: E402
+from eunomia.commands import images, instances, restart  # noqa: E402
+from eunomia.commands.onboard import Peer  # noqa: E402
 
 ROOT = settings.REPO_ROOT
 
@@ -58,27 +66,6 @@ class ImageRefs(unittest.TestCase):
             self.assertNotIn("${", ref)
             self.assertTrue(images._split(ref)[2], f"{ref} has no tag")
             self.assertNotIn(":latest", ref)
-
-
-class Catalog(unittest.TestCase):
-    def test_payloads_exist(self):
-        for name in catalog.PAYLOADS:
-            self.assertTrue((settings.CATALOG_DIR / name).is_file(), name)
-
-    def test_fill_connector(self):
-        demo = settings.demo()
-        payload = catalog._payload(catalog.PULL_CONNECTOR)
-        filled = catalog.fill_connector(payload, {"name": "urn:t", "version": "1.0"}, "urn:d", demo)
-        self.assertEqual(filled["templateName"], "urn:t")
-        self.assertEqual(filled["distributionId"], "urn:d")
-        self.assertEqual(filled["parameters"]["ACCESS_URL"], f"{demo.docker_static_api}/robots/")
-        self.assertEqual(filled["parameters"]["TOKEN_URL"], f"{demo.docker_keycloak}/realms/factory/protocol/openid-connect/token")
-
-    def test_no_placeholder_left(self):
-        demo = settings.demo()
-        for name, tpl in ((catalog.PULL_CONNECTOR, None), (catalog.PUSH_CONNECTOR, None)):
-            filled = catalog.fill_connector(catalog._payload(name), {"name": "n", "version": "v"}, "d", demo)
-            self.assertNotIn("__", str(filled["parameters"]), name)
 
 
 class Compose(unittest.TestCase):
@@ -145,21 +132,119 @@ class Parser(unittest.TestCase):
         self.assertEqual(build_parser().parse_args(["up"]).names, [])
 
     def test_exchange_roles(self):
-        args = build_parser().parse_args(["e2e", "--consumer", "bob", "--provider", "alice"])
+        args = build_parser().parse_args(["demo", "test", "--consumer", "bob", "--provider", "alice"])
         self.assertEqual((args.consumer, args.provider), ("bob", "alice"))
 
     def test_exchange_needs_both_roles(self):
         with self.assertRaises(SystemExit):
-            build_parser().parse_args(["e2e", "--consumer", "bob"])
+            build_parser().parse_args(["demo", "test", "--consumer", "bob"])
 
     def test_agent_add(self):
         args = build_parser().parse_args(["agent", "add", "alice", "--authority", "auth"])
         self.assertEqual((args.name, args.authority, args.no_onboard), ("alice", "auth", False))
 
-    def test_catalog_needs_an_agent(self):
-        self.assertEqual(build_parser().parse_args(["catalog", "populate", "alice"]).agent, "alice")
+    def test_catalog_show_needs_an_agent(self):
+        self.assertEqual(build_parser().parse_args(["catalog", "show", "alice"]).agent, "alice")
         with self.assertRaises(SystemExit):
-            build_parser().parse_args(["catalog", "populate"])
+            build_parser().parse_args(["catalog", "show"])
+
+    def test_the_demo_lives_under_its_extension(self):
+        for old in (["e2e"], ["notebook", "alice", "bob"], ["catalog", "populate", "alice"]):
+            with self.assertRaises(SystemExit):
+                build_parser().parse_args(old)
+
+    def test_extension_actions_run_through_dispatch(self):
+        self.assertTrue(callable(build_parser().parse_args(["demo", "publish", "alice"]).run))
+
+
+class Notebooks(unittest.TestCase):
+    """The core notebook (01_auth) and helpers, shared by every extension's notebooks."""
+
+    def test_core_notebook_reads_only_core_variables(self):
+        peer = Peer("alice", "http://127.0.0.1:1601", "http://host.docker.internal:1601")
+        provided = set(notebooks.environment(peer, peer, 1291))
+        for path in notebooks.core_notebooks():
+            for name in re.findall(r'env\(\\?"(EUNOMIA_[A-Z_]+)', path.read_text()):
+                self.assertIn(name, provided, f"{path.name} reads {name}")
+
+    def test_committed_without_outputs(self):
+        # The outputs carry DIDs and GNAP tokens of whoever ran them last.
+        sources = notebooks.core_notebooks() + sorted((ROOT / "extensions").glob("*/notebooks/*.ipynb"))
+        self.assertTrue(sources)
+        for path in sources:
+            for cell in json.loads(path.read_text())["cells"]:
+                self.assertFalse(cell.get("outputs"), f"{path.name} has outputs")
+
+
+EXTERNAL = textwrap.dedent(
+    """
+    from eunomia.ext import Extension
+
+
+    class Lab(Extension):
+        name = "{name}"
+        help = "an extension from another repository"
+
+        def commands(self, parser, actions):
+            actions.add_parser("hello").set_defaults(run=lambda args: 7)
+
+
+    extension = Lab()
+    """
+)
+
+
+class Extensions(unittest.TestCase):
+    def setUp(self):
+        self._env = os.environ.get("EUNOMIA_EXTENSIONS")
+        extensions._loaded = None
+
+    def tearDown(self):
+        if self._env is None:
+            os.environ.pop("EUNOMIA_EXTENSIONS", None)
+        else:
+            os.environ["EUNOMIA_EXTENSIONS"] = self._env
+        extensions._loaded = None
+
+    def _external(self, name):
+        root = Path(tempfile.mkdtemp()) / name
+        root.mkdir()
+        (root / "__init__.py").write_text(EXTERNAL.format(name=name))
+        os.environ["EUNOMIA_EXTENSIONS"] = str(root)
+        return root
+
+    def test_the_demo_is_built_in(self):
+        loaded = extensions.load()
+        self.assertIn("demo", loaded)
+        self.assertTrue(loaded["demo"].builtin)
+        self.assertTrue(loaded["demo"].extension.has_test())
+        self.assertIsNotNone(loaded["demo"].extension.notebooks())
+
+    def test_services_reach_the_core(self):
+        names = [svc.name for _, svc in extensions.services()]
+        self.assertIn("demo", names)
+        self.assertIn(extensions.load()["demo"].services[0].compose_file, images.compose_files())
+
+    def test_an_external_extension_adds_its_commands(self):
+        self._external("lab")
+        args = build_parser().parse_args(["lab", "hello"])
+        self.assertEqual(args.run(args), 7)
+        self.assertFalse(extensions.load()["lab"].builtin)
+
+    def test_the_reference_lists_only_built_in_extensions(self):
+        self._external("lab")
+        with self.assertRaises(SystemExit):
+            build_parser(builtin_extensions_only=True).parse_args(["lab", "hello"])
+
+    def test_an_extension_cannot_take_a_core_command(self):
+        self._external("status")
+        with self.assertRaises(log.Abort):
+            build_parser()
+
+    def test_names_are_unique(self):
+        self._external("demo")
+        with self.assertRaises(log.Abort):
+            extensions.load()
 
 
 def _tracked_text_files():

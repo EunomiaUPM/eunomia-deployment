@@ -1,0 +1,4 @@
+# What the notebooks need. `eunomia <extension> notebook` installs it into notebooks/.venv.
+jupyterlab>=4.2,<5
+nbconvert>=7.16,<8
+requests>=2.31,<3

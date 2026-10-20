@@ -202,7 +202,10 @@ def _random_name(prefix: str) -> str:
 
 
 def _taken_ports() -> List[int]:
-    taken = list(settings.demo_ports())
+    from .. import extensions
+
+    # The extensions' services keep their ports even while they are down.
+    taken = [port for _, svc in extensions.services() for port in svc.ports]
     for inst in all_instances():
         taken += [p for p in (inst.http_port, inst.db_port) if p]
     return taken

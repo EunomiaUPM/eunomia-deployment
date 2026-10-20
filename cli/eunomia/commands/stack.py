@@ -2,8 +2,8 @@
 
 `up` starts the local instances that are registered (all of them, or the
 named ones); it never creates any. `down` removes every local instance, its
-identity included, and the demo factory. `prod` runs the node of this server
-in a production deployment.
+identity included, and the extensions' services (the demo factory, say).
+`prod` runs the node of this server in a production deployment.
 """
 
 from __future__ import annotations
@@ -12,9 +12,9 @@ import subprocess
 import sys
 from typing import Sequence
 
-from .. import compose, log, settings
+from .. import compose, extensions, log, settings
 from ..settings import REPO_ROOT
-from . import demo, instances
+from . import instances
 
 
 def up(names: Sequence[str]) -> None:
@@ -29,14 +29,15 @@ def up(names: Sequence[str]) -> None:
     log.ok(f"\n{len(targets)} instance(s) up. See them all with: eunomia ls")
 
 
-def stop(names: Sequence[str], with_demo: bool) -> None:
+def stop(names: Sequence[str], with_services: bool) -> None:
     compose.require_docker()
     for inst in reversed([i for i in instances.select(names) if i.local]):
         instances.stop(inst)
-    if with_demo or not names:
-        if demo.is_running():
-            compose.compose(settings.demo_stack(), "stop")
-            log.ok("Demo factory stopped")
+    if with_services:
+        for _, svc in extensions.services():
+            if svc.is_running():
+                svc.stop()
+                log.ok(f"{svc.label or svc.name} stopped")
 
 
 def remove(names: Sequence[str], yes: bool) -> None:
@@ -48,7 +49,7 @@ def remove(names: Sequence[str], yes: bool) -> None:
 
 
 def down(yes: bool, dry_run: bool) -> None:
-    """Remove every local instance and the demo factory; remote ones stay registered."""
+    """Remove every local instance and the extensions' services; remote ones stay registered."""
     compose.require_docker()
     local = [i for i in instances.all_instances() if i.local]
     prefix = settings.container_prefix()
@@ -57,16 +58,19 @@ def down(yes: bool, dry_run: bool) -> None:
         log.info("DRY RUN: nothing will be removed")
         for inst in local:
             log.info(f"  would remove {inst.kind} {inst.name}: containers, volumes, instances/{inst.name}/")
-        log.info(f"  would remove the demo factory and any {prefix}* container left behind")
+        for _, svc in extensions.services():
+            log.info(f"  would remove the {svc.label or svc.name} and its data")
+        log.info(f"  would remove any {prefix}* container left behind")
         return
     instances.confirm(
         f"This removes every local instance ({', '.join(i.name for i in local) or 'none'}), "
-        "their data and identities, and the demo factory.",
+        "their data and identities, and the extensions' services.",
         yes,
     )
     for inst in local:
         instances.remove(inst)
-    compose.compose(settings.demo_stack(), "down", "--volumes", "--remove-orphans")
+    for _, svc in extensions.services():
+        svc.down()
     _sweep()
     log.ok("\nEverything local is gone. Start again with: eunomia authority add <name>")
 
@@ -86,7 +90,12 @@ def _sweep() -> None:
 def status() -> int:
     compose.require_docker()
     instances.list_instances()
-    print(f"\ndemo factory: {'running' if demo.is_running() else 'not running (eunomia demo up)'}")
+    svcs = extensions.services()
+    if svcs:
+        print()
+    for ext_name, svc in svcs:
+        state = "running" if svc.is_running() else "not running" + (f" ({svc.start_hint})" if svc.start_hint else "")
+        print(f"{svc.label or svc.name} ({ext_name} extension): {state}")
     unhealthy = [i for i in instances.all_instances() if not instances.state(i).startswith(("running (healthy)", "ready"))]
     return 1 if unhealthy else 0
 
@@ -121,8 +130,9 @@ def prod_logs(kind: str, follow: bool, tail: str, services: Sequence[str]) -> in
 
 
 def logs(target: str, follow: bool, tail: str, services: Sequence[str]) -> int:
-    if target == "demo":
-        return demo.logs(follow, tail, list(services))
+    for _, svc in extensions.services():
+        if target == svc.name:
+            return svc.logs(follow, tail, services)
     if (settings.INSTANCES_DIR / target).is_dir():
         return instances.logs(instances.get(target), follow, tail, services)
     # Any container: an instance's setup job, say.
