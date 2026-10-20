@@ -17,7 +17,7 @@ private_key.json.example
 /instances/
 
 # Private notes, kept out of this public repo
-internal/
+/internal/
 
 # Environment variables
 .env
