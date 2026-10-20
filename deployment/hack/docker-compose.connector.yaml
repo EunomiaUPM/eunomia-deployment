@@ -1,0 +1,130 @@
+# =====================================================================
+# Conector independiente (ds-agent + wallet Fafnir + Postgres + Redis).
+#
+# Plantilla usada por hack.sh / hack.ps1 ("connector add"). No la lances a
+# mano: necesita versions.env + instances/<nombre>/instance.env y el
+# proyecto propio (-p hack-<nombre>).
+#
+# Variables (instance.env): INSTANCE, ROLE (consumer|provider), HTTP_PORT,
+# DB_PORT, REDIS_PASSWORD. Las rutas son relativas a este fichero.
+# =====================================================================
+
+services:
+  db:
+    container_name: "${INSTANCE:?}-db"
+    image: "postgres"
+    restart: always
+    env_file:
+      - ./../../static/envs/${ROLE:?}/db.env.example
+    ports:
+      - "${DB_PORT:?}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    container_name: "${INSTANCE}-redis"
+    image: redis:alpine
+    restart: always
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:?}
+      --user admin on >${REDIS_PASSWORD} ~* +@all
+
+  wallet-setup:
+    container_name: "${INSTANCE}-wallet-setup"
+    image: "${FAFNIR_IMAGE:?define FAFNIR_IMAGE en versions.env}:${FAFNIR_TAG:?define FAFNIR_TAG en versions.env}"
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./../../instances/${INSTANCE}/config/fafnir.yaml:/app/static/fafnir/config.yaml
+      - ./../../instances/${INSTANCE}/vault/secrets/db.json.example:/app/vault/secrets/db.json.example
+    env_file:
+      - ./../../static/envs/fafnir/env.example
+    environment:
+      RUST_BACKTRACE: 1
+    command: [ "setup", "--env-file", "/app/static/fafnir/config.yaml" ]
+
+  wallet:
+    container_name: "${INSTANCE}-wallet"
+    image: "${FAFNIR_IMAGE}:${FAFNIR_TAG}"
+    restart: always
+    depends_on:
+      wallet-setup:
+        condition: service_completed_successfully
+    volumes:
+      - ./../../instances/${INSTANCE}/config/fafnir.yaml:/app/static/fafnir/config.yaml
+      - ./../../instances/${INSTANCE}/vault/secrets/db.json.example:/app/vault/secrets/db.json.example
+    env_file:
+      - ./../../static/envs/fafnir/env.example
+    environment:
+      RUST_BACKTRACE: 1
+    command: [ "start", "--env-file", "/app/static/fafnir/config.yaml" ]
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:7001/readiness" ]
+      interval: 5s
+      timeout: 2s
+      retries: 30
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  agent-setup:
+    container_name: "${INSTANCE}-setup"
+    image: "${EUNOMIA_IMAGE:?define EUNOMIA_IMAGE en versions.env}:${EUNOMIA_TAG:?define EUNOMIA_TAG en versions.env}"
+    restart: "no"
+    command: [ "setup", "-e", "/app/static/config/agent.yaml" ]
+    volumes:
+      - ./../../static/specs/agent/:/app/static/specs/
+      - ./../../instances/${INSTANCE}/vault/:/app/vault
+      - ./../../instances/${INSTANCE}/config/:/app/static/config
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file:
+      - ./../../static/envs/${ROLE}/core.env.example
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  agent:
+    container_name: "${INSTANCE}"
+    image: "${EUNOMIA_IMAGE}:${EUNOMIA_TAG}"
+    restart: always
+    command: [ "start", "-e", "/app/static/config/agent.yaml" ]
+    ports:
+      # Mismo puerto dentro y fuera: el DID es did:web:host.docker.internal%3A<puerto>
+      - "${HTTP_PORT:?}:${HTTP_PORT}"
+    volumes:
+      - ./../../static/specs/agent/:/app/static/specs/
+      - ./../../instances/${INSTANCE}/vault/:/app/vault
+      - ./../../instances/${INSTANCE}/config/:/app/static/config
+    depends_on:
+      agent-setup:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      wallet:
+        condition: service_healthy
+    env_file:
+      - ./../../static/envs/${ROLE}/core.env.example
+    environment:
+      RUST_BACKTRACE: full
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:${HTTP_PORT}/.well-known/dspace-version" ]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  db-data:

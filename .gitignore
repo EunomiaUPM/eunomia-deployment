@@ -12,3 +12,6 @@ public_key.json.example
 private_key.json.example
 
 *.ps1
+# hackathon: entry point de Windows y estado local de instancias
+!hack.ps1
+instances/

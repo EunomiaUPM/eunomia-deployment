@@ -16,7 +16,7 @@ services:
 
   fafnir-setup:
     container_name: "fafnir-setup"
-    image: "rmenendez8/fafnir:v0.2.0"
+    image: "${FAFNIR_IMAGE:?define FAFNIR_IMAGE en versions.env}:${FAFNIR_TAG:?define FAFNIR_TAG en versions.env}"
     restart: "no"
     depends_on:
       heimdall-db:
@@ -35,7 +35,7 @@ services:
 
   fafnir-wallet:
     container_name: "fafnir-wallet"
-    image: "rmenendez8/fafnir:v0.2.0"
+    image: "${FAFNIR_IMAGE:?define FAFNIR_IMAGE en versions.env}:${FAFNIR_TAG:?define FAFNIR_TAG en versions.env}"
     restart: always
     depends_on:
       fafnir-setup:
@@ -61,7 +61,7 @@ services:
 
   heimdall-setup:
     container_name: heimdall-setup
-    image: rmenendez8/heimdall:v2.1.0
+    image: "${HEIMDALL_IMAGE:?define HEIMDALL_IMAGE en versions.env}:${HEIMDALL_TAG:?define HEIMDALL_TAG en versions.env}"
     restart: "no"
     depends_on:
       heimdall-db:
@@ -81,7 +81,7 @@ services:
 
   heimdall:
     container_name: heimdall
-    image: rmenendez8/heimdall:v2.1.0
+    image: "${HEIMDALL_IMAGE:?define HEIMDALL_IMAGE en versions.env}:${HEIMDALL_TAG:?define HEIMDALL_TAG en versions.env}"
     restart: always
     ports:
       - "1500:1500"

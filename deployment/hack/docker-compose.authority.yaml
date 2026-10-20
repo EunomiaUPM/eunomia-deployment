@@ -1,0 +1,115 @@
+# =====================================================================
+# Autoridad independiente (Heimdall + wallet Fafnir + Postgres).
+#
+# Plantilla usada por hack.sh / hack.ps1 ("authority add"). No la lances a
+# mano: necesita versions.env + instances/<nombre>/instance.env y el
+# proyecto propio (-p hack-<nombre>).
+#
+# Variables (instance.env): INSTANCE, HTTP_PORT, DB_PORT.
+# Las rutas son relativas a este fichero.
+# =====================================================================
+
+services:
+  db:
+    container_name: "${INSTANCE:?}-db"
+    image: postgres
+    restart: always
+    env_file:
+      - ./../../static/envs/heimdall/db.env.example
+    ports:
+      - "${DB_PORT:?}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  wallet-setup:
+    container_name: "${INSTANCE}-wallet-setup"
+    image: "${FAFNIR_IMAGE:?define FAFNIR_IMAGE en versions.env}:${FAFNIR_TAG:?define FAFNIR_TAG en versions.env}"
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./../../instances/${INSTANCE}/config/fafnir.yaml:/app/static/fafnir/config.yaml
+      - ./../../instances/${INSTANCE}/vault/secrets/db.json.example:/app/vault/secrets/db.json.example
+    env_file:
+      - ./../../static/envs/fafnir/env.example
+    environment:
+      RUST_BACKTRACE: 1
+    command: [ "setup", "--env-file", "/app/static/fafnir/config.yaml" ]
+
+  wallet:
+    container_name: "${INSTANCE}-wallet"
+    image: "${FAFNIR_IMAGE}:${FAFNIR_TAG}"
+    restart: always
+    depends_on:
+      wallet-setup:
+        condition: service_completed_successfully
+    volumes:
+      - ./../../instances/${INSTANCE}/config/fafnir.yaml:/app/static/fafnir/config.yaml
+      - ./../../instances/${INSTANCE}/vault/secrets/db.json.example:/app/vault/secrets/db.json.example
+    env_file:
+      - ./../../static/envs/fafnir/env.example
+    environment:
+      RUST_BACKTRACE: 1
+    command: [ "start", "--env-file", "/app/static/fafnir/config.yaml" ]
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:7001/readiness" ]
+      interval: 5s
+      timeout: 2s
+      retries: 30
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  heimdall-setup:
+    container_name: "${INSTANCE}-setup"
+    image: "${HEIMDALL_IMAGE:?define HEIMDALL_IMAGE en versions.env}:${HEIMDALL_TAG:?define HEIMDALL_TAG en versions.env}"
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./../../instances/${INSTANCE}/config/:/app/static/config
+      - ./../../static/specs/heimdall/openapi/:/app/static/specs/openapi/
+      - ./../../instances/${INSTANCE}/vault:/app/vault
+    env_file:
+      - ./../../static/envs/heimdall/heimdall.env.example
+    environment:
+      RUST_BACKTRACE: 1
+    command: [ "setup", "--env-file", "/app/static/config/authority.yaml" ]
+
+  heimdall:
+    container_name: "${INSTANCE}"
+    image: "${HEIMDALL_IMAGE}:${HEIMDALL_TAG}"
+    restart: always
+    ports:
+      # Mismo puerto dentro y fuera: el DID es did:web:host.docker.internal%3A<puerto>
+      - "${HTTP_PORT:?}:${HTTP_PORT}"
+    depends_on:
+      heimdall-setup:
+        condition: service_completed_successfully
+      wallet:
+        condition: service_healthy
+    volumes:
+      - ./../../instances/${INSTANCE}/config/:/app/static/config
+      - ./../../static/specs/heimdall/openapi/:/app/static/specs/openapi/
+      - ./../../instances/${INSTANCE}/vault:/app/vault
+    env_file:
+      - ./../../static/envs/heimdall/heimdall.env.example
+    environment:
+      RUST_BACKTRACE: 1
+    command: [ "start", "--env-file", "/app/static/config/authority.yaml" ]
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:${HTTP_PORT}/readiness" ]
+      interval: 5s
+      timeout: 2s
+      retries: 60
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  db-data:

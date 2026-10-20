@@ -34,9 +34,9 @@ echo -e "\033[0;36m        GAIA LOCAL FLOW\033[0m"
 echo -e "\033[0;36m======================================\033[0m"
 
 log_step "STEP 1 - Linking wallets"
-invoke_curl_json POST "$CONSUMER_URL/api/v1/wallet/link" >/dev/null
-invoke_curl_json POST "$PROVIDER_URL/api/v1/wallet/link" >/dev/null
-invoke_curl_json POST "$AUTHORITY_URL/api/v1/wallet/link" >/dev/null
+link_wallet "$CONSUMER_URL"
+link_wallet "$PROVIDER_URL"
+link_wallet "$AUTHORITY_URL"
 
 log_step "STEP 2 - Retrieving DIDs"
 CONSUMER_DID=$(invoke_curl_json GET "$CONSUMER_URL/.well-known/did.json" | jq -r '.id')
@@ -50,25 +50,25 @@ log_step "STEP 3 - Requesting Legal VC"
 LEGAL_BODY=$(jq -n \
     --arg url "$DOCKER_AUTHORITY_URL/api/v1/gate/access" \
     --arg id  "$AUTHORITY_DID" \
-    '{url:$url, id:$id, slug:"authority", vc_type:"gx_VatId_jwt_vc_json", method:"cert", auto:true}')
+    '{url:$url, id:$id, nick:"authority", vc_type:"gx_VatId_jwt_vc_json", method:"cert", auto:true}')
 invoke_curl_json POST "$CONSUMER_URL/api/v1/vc-request/beg" "$LEGAL_BODY" >/dev/null
 
 log_step "STEP 6 - Generating Gaia VCs"
-invoke_curl_json POST "$CONSUMER_URL/api/v1/gaia/credential/generate" >/dev/null
+invoke_curl_json POST "$CONSUMER_URL/api/v1/gaia/generate" >/dev/null
 
 log_step "STEP 7 - Requesting Label VC"
 LABEL_BODY=$(jq -n \
     --arg url "$DOCKER_AUTHORITY_URL/api/v1/gate/access" \
     --arg id  "$AUTHORITY_DID" \
-    '{url:$url, id:$id, slug:"authority", vc_type:"gx_LabelCredential_jwt_vc_json", method:"oidc4vp", auto:true}')
+    '{url:$url, id:$id, nick:"authority", vc_type:"gx_LabelCredential_jwt_vc_json", method:"oidc4vp", auto:true}')
 invoke_curl_json POST "$CONSUMER_URL/api/v1/vc-request/beg" "$LABEL_BODY" >/dev/null
 
 log_step "STEP 8 - Talking to Provider"
 PROVIDER_BODY=$(jq -n \
     --arg url "$DOCKER_PROVIDER_URL/api/v1/gate/access" \
     --arg id  "$PROVIDER_DID" \
-    '{url:$url, id:$id, slug:"provider", actions:["talk"], auto:true}')
-invoke_curl_json POST "$CONSUMER_URL/api/v1/onboard/provider" "$PROVIDER_BODY" >/dev/null
+    '{url:$url, id:$id, nick:"provider", actions:["talk"], auto:true}')
+invoke_curl_json POST "$CONSUMER_URL/api/v1/peer-connection/connect" "$PROVIDER_BODY" >/dev/null
 
 echo -e "\n\033[0;32m======================================\033[0m"
 echo -e "\033[0;32m     GAIA FLOW COMPLETED\033[0m"

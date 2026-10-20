@@ -8,9 +8,9 @@ echo "         FULL ONBOARDING"
 echo "======================================"
 
 log_step "Linking wallets"
-curl_raw POST "$AUTHORITY_URL/api/v1/wallet/link" >/dev/null
-curl_raw POST "$CONSUMER_URL/api/v1/wallet/link" >/dev/null
-curl_raw POST "$PROVIDER_URL/api/v1/wallet/link" >/dev/null
+link_wallet "$AUTHORITY_URL"
+link_wallet "$CONSUMER_URL"
+link_wallet "$PROVIDER_URL"
 log_success "Wallets linked"
 
 PARTICIPANT_URL="$CONSUMER_URL" PARTICIPANT_SLUG="consumer" \
@@ -19,7 +19,9 @@ PARTICIPANT_URL="$CONSUMER_URL" PARTICIPANT_SLUG="consumer" \
 PARTICIPANT_URL="$PROVIDER_URL" PARTICIPANT_SLUG="provider" \
     bash "$SCRIPT_DIR/register-with-authority.sh"
 
-bash "$SCRIPT_DIR/authenticate-participants.sh"
+# El provider del mini pide gx:LabelCredential: gaia.sh consigue las VCs Gaia-X del consumer
+# y termina autenticándolo en el provider.
+bash "$SCRIPT_DIR/gaia.sh"
 
 echo -e "\n======================================"
 echo "   ONBOARDING FINISHED SUCCESSFULLY"

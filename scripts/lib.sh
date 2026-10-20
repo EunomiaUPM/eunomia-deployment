@@ -11,13 +11,32 @@ log_success() { echo -e "\033[32m$1\033[0m" >&2; }
 log_error()   { echo -e "\033[31m$1\033[0m" >&2; exit 1; }
 log_info()    { echo -e "\033[33m$1\033[0m" >&2; }
 
+# Imprime el cuerpo de la respuesta; si el HTTP es >= 400 (o no hay conexión) aborta con el error.
 curl_raw() {
     local method=${1:-GET}
     local url=$2
     local body=${3:-}
+    local response code
     if [ -n "$body" ]; then
-        curl -s -X "$method" "$url" -H "Content-Type: application/json" -d "$body"
+        response=$(curl -s -w "\n%{http_code}" -X "$method" "$url" -H "Content-Type: application/json" -d "$body") || true
     else
-        curl -s -X "$method" "$url" -H "Content-Type: application/json"
+        response=$(curl -s -w "\n%{http_code}" -X "$method" "$url" -H "Content-Type: application/json") || true
+    fi
+    code=$(echo "$response" | tail -n1)
+    response=$(echo "$response" | sed '$d')
+    if [ -z "$code" ] || [ "$code" = "000" ] || [ "$code" -ge 400 ]; then
+        log_error "ERROR: $method $url -> HTTP ${code:-000}
+$response"
+    fi
+    echo "$response"
+}
+
+# Enlaza el wallet solo si aún no lo está (GET /wallet/is-linked: 200 = enlazado).
+link_wallet() {
+    local url=$1
+    if [ "$(curl -s -o /dev/null -w '%{http_code}' "$url/api/v1/wallet/is-linked")" = "200" ]; then
+        log_info "Wallet already linked: $url"
+    else
+        curl_raw POST "$url/api/v1/wallet/link" >/dev/null
     fi
 }
