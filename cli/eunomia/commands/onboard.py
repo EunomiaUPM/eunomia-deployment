@@ -5,8 +5,8 @@
   3. Gaia-X       the agent gets the legal VC (gx:VatId), generates its
                   self-attested Gaia-X VCs and gets the label VC
                   (gx:LabelCredential): agents only accept peers that hold it
-  4. Connect      GNAP handshake that gives one agent a token for another,
-                  run per pair with `eunomia connect`
+  4. Login        GNAP grant between two agents, per pair, with `eunomia
+                  login`: once approved, both hold a token for the other
 
 Every agent gets all three credentials, so any agent can connect to any other
 and play either role in an exchange. Every step checks first and skips when
@@ -154,11 +154,7 @@ def _connection_status(source: Peer, target_did: str) -> str:
 
 
 def connect(source: Peer, target: Peer) -> None:
-    """GNAP handshake that gives `source` a token to talk to `target`.
-
-    The token works one way: for `target` to call `source` too (to browse its
-    catalog, say), connect them the other way round as well.
-    """
+    """GNAP grant from `source` to `target`; once approved both hold a token."""
     log.step(f"Connecting {source.name} to {target.name}")
     target_did = did(target.url)
     if has_token(source, target_did):
@@ -188,6 +184,30 @@ def connect(source: Peer, target: Peer) -> None:
             f"and look at the logs: eunomia logs {target.name}"
         )
     log.ok(f"{source.name} is connected to {target.name}")
+
+
+def login(a: Peer, b: Peer) -> None:
+    """GNAP login between two agents.
+
+    One grant is enough: when `a` connects to `b` and `b` approves, both end
+    up holding a token for the other, and either can browse the other's
+    catalog and negotiate with it. If `a` already holds a token for `b`
+    (from an earlier login either way) nothing is requested.
+    """
+    link_wallets([a, b])
+    connect(a, b)
+    a_did, b_did = did(a.url), did(b.url)
+    # The grant is mutual; if the other side somehow lacks its token, ask from there too.
+    if not has_token(b, a_did):
+        connect(b, a)
+    status = _connection_status(a, b_did)
+    if status == "no request":
+        status = _connection_status(b, a_did)
+    log.ok(
+        f"\n{a.name} and {b.name} are logged in over GNAP (grant {status}):\n"
+        f"  {a.name:<12} holds a token for {b.name}: {'yes' if has_token(a, b_did) else 'no'}\n"
+        f"  {b.name:<12} holds a token for {a.name}: {'yes' if has_token(b, a_did) else 'no'}"
+    )
 
 
 def onboard_agent(agent: Peer, authority: Peer, with_gaia: bool = True) -> None:

@@ -17,6 +17,7 @@ roles two agents take in one exchange.
   eunomia authority add authority
   eunomia agent add alice
   eunomia agent add bob
+  eunomia login alice bob
   eunomia demo up
   eunomia catalog populate alice
   eunomia e2e --consumer bob --provider alice
@@ -104,10 +105,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("agents", nargs="+", metavar="agent")
     p.add_argument("--authority", help="default: the only authority there is")
 
-    p = sub.add_parser("connect", help="GNAP handshake: give one agent a token for another")
-    p.add_argument("source", metavar="agent", help="the agent that connects")
-    p.add_argument("target", metavar="to", help="the agent it connects to")
-    p.add_argument("--both", action="store_true", help="connect them the other way round too")
+    p = sub.add_parser("login", help="GNAP login between two agents: once approved, each holds a token for the other")
+    p.add_argument("a", metavar="agent", help="the agent that asks for the grant")
+    p.add_argument("b", metavar="other", help="the agent that verifies its credentials and approves it")
 
     p = sub.add_parser("catalog", help="an agent's catalog")
     csub = p.add_subparsers(dest="action", metavar="<action>")
@@ -203,11 +203,10 @@ def dispatch(args: argparse.Namespace) -> int:
         authority = instances.authority_for(args.authority)
         for name in args.agents:
             onboard.onboard_agent(_agent(name), authority.peer, with_gaia=instances.issues_gaia(authority))
-    elif cmd == "connect":
-        a, b = _agent(args.source), _agent(args.target)
-        onboard.connect(a, b)
-        if args.both:
-            onboard.connect(b, a)
+    elif cmd == "login":
+        if args.a == args.b:
+            raise log.fail("An agent cannot log in with itself: name two agents.")
+        onboard.login(_agent(args.a), _agent(args.b))
     elif cmd == "catalog":
         peer = _agent(args.agent)
         if args.action == "populate":
