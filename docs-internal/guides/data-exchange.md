@@ -1,0 +1,89 @@
+---
+title: Exchanging data
+description: The catalog request, the contract negotiation and the pull and push transfers, step by step with the demo factory.
+---
+
+`./eunomia e2e` runs the whole sequence below and checks the result of every step. This page shows what it does, so you can reproduce it from your own code or from the consoles.
+
+All the calls go to the **consumer** or the **provider** agent (`http://127.0.0.1:1100` and `:1200`). The addresses inside the bodies are the ones the agents use to reach each other: `http://host.docker.internal:<port>`.
+
+## Before: who is who
+
+```http
+GET /api/v1/mates/myself          on each agent → { "participant_id": "<its DID>", … }
+GET /api/v1/mates/all             on the consumer → the provider must be there with a token
+GET /.well-known/dspace-version/2025-1   on the consumer → { "path": "/dsp/current", … }
+```
+
+The consumer's callback address is `http://host.docker.internal:1100` plus that path. No token for the provider means the consumer is not connected: `./eunomia onboard`.
+
+## 1. Catalog
+
+```http
+POST /dsp/current/catalog/rpc/setup-catalog-request        (consumer)
+{ "associatedAgentPeer": "<provider DID>", "filter": [], "noCache": true }
+```
+
+The answer lists the datasets under `response.dataset`, each with its policies (`hasPolicy`) and distributions, and the provider's DSP address under `response.service.endpointURL`.
+
+## 2. Contract negotiation
+
+The offer is one of the dataset's policies, echoed as the catalog advertises it:
+
+```json
+{ "@id": "<policy id>", "@type": "Offer", "target": "<dataset id>",
+  "permission": […], "obligation": […], "prohibition": […] }
+```
+
+Then each side moves the negotiation one state forward, with the `consumerPid` and `providerPid` the first call returns:
+
+| # | Who | RPC (`/dsp/current/negotiations/rpc/…`) | State |
+| --- | --- | --- | --- |
+| 1 | consumer | `setup-request-init` with `associatedAgentPeer`, `providerAddress`, `callbackAddress`, `offer` | `REQUESTED` |
+| 2 | provider | `setup-offer` with the offer | `OFFERED` |
+| 3 | consumer | `setup-request` with the offer | `REQUESTED` |
+| 4 | provider | `setup-offer`, the final terms | `OFFERED` |
+| 5 | consumer | `setup-acceptance` | `ACCEPTED` |
+| 6 | provider | `setup-agreement` | `AGREED` |
+| 7 | consumer | `setup-verification` | `VERIFIED` |
+| 8 | provider | `setup-finalization` | `FINALIZED`, with the agreement id |
+
+## 3. Pull transfer
+
+```http
+POST /dsp/current/transfers/rpc/setup-request              (consumer)
+{ "associatedAgentPeer": "<provider DID>", "providerAddress": "<provider DSP>",
+  "callbackAddress": "<consumer callback>", "agreementId": "<agreement>", "format": "HTTP_PULL" }
+
+POST /dsp/current/transfers/rpc/setup-start                (provider)
+{ "consumerPid": "…", "providerPid": "…" }
+```
+
+The start answer carries the data plane address, `http://host.docker.internal:1200/dataplane/proxy/<transfer id>`. A `GET` on it (from the host: `http://127.0.0.1:1200/…`) returns the factory's robots: the provider fetched them with its own Keycloak token. The same factory URL without a token answers `401`, which is how `e2e` proves the consumer never had the factory's credentials.
+
+The transfer can be paused and resumed (`setup-suspension`, then `setup-start` on the consumer) and is closed with `setup-completion` on the provider.
+
+## 4. Push transfer
+
+On the same agreement, a second transfer with `"format": "HTTP_PUSH"` and the endpoint the events should reach:
+
+```json
+"dataAddress": { "endpointType": "HTTP", "endpoint": "http://host.docker.internal:1290/events", "endpointProperties": [] }
+```
+
+When the provider starts it, its push connector subscribes to the factory with its own ingress URL; every robot event then goes factory → provider → consumer → that endpoint. Completing the transfer makes the provider unsubscribe.
+
+`./eunomia demo events` does exactly this with a small HTTP server of its own on port 1290, and prints the events until Ctrl+C. The endpoint can be any HTTP server the consumer agent reaches.
+
+## From the consoles
+
+The same flow is available by hand in the consumer console (<http://127.0.0.1:1100/admin/login>, `eunomia` / `eunomia`): browse the provider's catalog, request a contract on the dataset, and once it is finalized start a transfer from the agreement. The provider console (<http://127.0.0.1:1200/admin/login>) shows the same negotiations and transfers from the other side.
+
+## Between other participants
+
+`e2e`, `demo` and `catalog` take `--consumer` and `--provider` to use [extra participants](./instances.md) instead of the standalone ones:
+
+```bash
+./eunomia catalog populate --provider seller
+./eunomia e2e --consumer buyer --provider seller
+```

@@ -1,0 +1,41 @@
+---
+title: Requirements
+description: What the machine needs to run the deployment, and the ports it uses.
+---
+
+## Software
+
+| | Needed | Notes |
+| --- | --- | --- |
+| **Docker** | Docker Desktop (Windows, macOS) or Docker Engine (Linux), running | The EUNOMIA images are amd64 only; on Apple Silicon Docker Desktop runs them under emulation |
+| **Docker Compose** | v2 or later: `docker compose`, not `docker-compose` | Included in Docker Desktop. On Linux, the `docker-compose-plugin` package |
+| **Python** | Optional: 3.8 or later | Without it, the CLI runs in a container (see below) |
+
+About 4 GB of free memory for Docker and 3 GB of disk for the images.
+
+`./eunomia doctor` checks all of this, and `./eunomia doctor --images` also checks that every pinned image can be pulled.
+
+## With or without Python
+
+`./eunomia` (and `eunomia.cmd` on Windows) runs the CLI with the local Python 3.8+ when there is one: it uses the standard library only, so there is nothing to install. Without Python, it builds a small image the first time (`deployment/tools/`, Python plus the Docker CLI) and runs the CLI inside it, with this checkout mounted. Set `EUNOMIA_CONTAINER=1` to use the container even when Python is there.
+
+To have `eunomia` on your `PATH` instead of `./eunomia`: `pip install -e .`
+
+## Ports
+
+The standalone deployment publishes these ports on the host. `./eunomia up` refuses to start if one is taken by another program.
+
+| Port | Service | Port | Service |
+| --- | --- | --- | --- |
+| `1500` | Authority (Heimdall) | `1450` | Authority database |
+| `1200` | Provider agent | `1400` | Provider database |
+| `1100` | Consumer agent | `1300` | Consumer database |
+| `1210` | Factory static API (pull) | `1220` | Factory dynamic API (push) |
+| `1230` | Factory Keycloak | `1290` | Where `e2e` and `demo events` receive pushed events, while they run |
+
+The agent ports are fixed, because the participants advertise them to each other. The others can move: see [Configuration](../guides/configuration.md). [Extra participants](../guides/instances.md) take free ports in `1600-1999` and `15400-15999`.
+
+## Linux
+
+- The containers reach the host at `host.docker.internal`. If onboarding fails with timeouts, the firewall (ufw, firewalld) may block traffic from Docker to the host: allow the `docker0` interface.
+- The setup jobs run unprivileged and write the generated keys into `vault/`; the CLI makes those directories writable for them.

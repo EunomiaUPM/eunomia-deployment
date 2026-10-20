@@ -1,0 +1,115 @@
+---
+title: The demo factory
+description: The data backend the demo provider shares: a factory with robots, their yearly measures and the events they emit.
+---
+
+The provider of the standalone deployment shares the data of a **factory**: a fleet of robots, a year of production figures for each, and a stream of events the robots emit. It is a small Go service in [`services/demo-factory/`](../../services/demo-factory/), with its own Postgres and a Keycloak in front, started by `./eunomia up` (or `./eunomia up demo`).
+
+It is the backend the provider agent sits in front of: the consumer never calls it directly, and never sees its credentials.
+
+## Pull: the robots
+
+The **static API** (<http://127.0.0.1:1210/docs>) serves the robots and their measures:
+
+| Route | Returns |
+| --- | --- |
+| `GET /robots/` | every robot with its measures |
+| `GET /robots/{id}` | one robot with its measures |
+| `GET /robots/{id}/measures` | the yearly measures of one robot |
+| `GET /measures/{id}` | one measure |
+| `POST /robots/`, `POST /measures/` | create one |
+
+A robot:
+
+```json
+{
+  "name": "Helix",
+  "model": "KR-210 Quantec",
+  "line": "Line A",
+  "measures": [
+    {
+      "robot_id": 1,
+      "year": 2025,
+      "cycles": 1250000,
+      "uptimeHours": 7900.5,
+      "downtimeHours": 310.2,
+      "energyKwh": 23150.4,
+      "partsProduced": 1180000,
+      "defectRate": 0.012,
+      "oee": 0.84,
+      "mtbfHours": 3200,
+      "maintenanceCount": 9,
+      "avgTemperatureC": 44.7
+    }
+  ]
+}
+```
+
+On first start it seeds five robots with four years of measures each.
+
+## Push: the robot events
+
+The **dynamic API** (<http://127.0.0.1:1220/docs>) takes subscriptions and pushes events to them:
+
+| Route | Does |
+| --- | --- |
+| `POST /subscriptions/subscribe` | `{"url": "<where to POST>", "event_type": "robot_temperature"}`; answers `{"data": {"ID": 3, …}}` |
+| `POST /subscriptions/unsubscribe/{id}` | cancels it |
+
+Every 3 seconds a simulator updates four event types, `robot_temperature`, `robot_energy_usage`, `robot_cycle_time` and `robot_vibration`, and POSTs each to every subscriber:
+
+```json
+{ "id": 3, "item_type": "robot_temperature", "last_value": 47.3, "last_measured_at": "2026-10-20T00:00:00Z" }
+```
+
+Every subscriber gets every event type, whatever `event_type` it subscribed with, and `last_measured_at` carries the day only.
+
+## Authentication
+
+Every route except `/docs` and `/openapi.yaml` needs a bearer token from the factory's Keycloak (<http://127.0.0.1:1230>, realm `factory`). These are demo credentials:
+
+| | |
+| --- | --- |
+| Client | `factory-client` / `factory-secret` |
+| User | `testuser` / `password` |
+| Keycloak admin | `admin` / `admin` |
+
+`./eunomia demo token` prints a token, to call the API yourself:
+
+```bash
+TOKEN=$(./eunomia demo token)
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:1210/robots/
+```
+
+The provider agent does the same thing on its own: its connectors use the OAuth2 password grant against this Keycloak, and refresh the token when it expires.
+
+## In the catalog
+
+`./eunomia catalog populate` (and `up`) creates, from [`static/catalog/`](../../static/catalog/):
+
+```text
+Dataset: Factory Robots Dataset
+├── Distribution: HTTP Pull   → GET /robots/
+├── Distribution: HTTP Push   → robot events
+├── Policies
+│   ├── template instantiation: research access for UPM
+│   ├── commercial use with attribution (2026-2030)
+│   └── research trial: read only, 10 000 requests (2026-2028)
+├── Connector template: HTTP Pull (OAuth2 password grant)
+├── Connector template: HTTP Push (OAuth2 password grant, EVENT_TYPE parameter)
+└── Connector instances
+    ├── pull → http://host.docker.internal:1210/robots/
+    └── push → http://host.docker.internal:1220/subscriptions/subscribe, …/unsubscribe/{id}
+```
+
+The connector URLs are the ones the **provider agent** uses, from its container. The push template subscribes with the provider's own ingress URL, and takes the subscription id for the unsubscribe from the subscribe response (`{.subscription.data.ID}`).
+
+## Developing it
+
+```bash
+cd services/demo-factory
+go build ./...
+docker compose --env-file ../../versions.env up -d --build   # or: ./eunomia up demo --build
+```
+
+The specs are in `services/demo-factory/specs/`: OpenAPI (also served at `/openapi.yaml`), protobuf and Postman collections.

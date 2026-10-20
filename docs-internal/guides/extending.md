@@ -1,0 +1,53 @@
+---
+title: Extending the deployment
+description: Share your own data instead of the demo factory, and build on this repository from another one.
+---
+
+The demo factory is one backend the provider can share. Your own data takes the same three pieces: a service that holds it, connectors that tell the provider how to reach it, and a catalog entry that offers it.
+
+## 1. Your backend
+
+Any HTTP service the provider agent reaches works. For pull it answers a `GET`; for push it takes a subscription and POSTs events to the URL it was given. Run it next to the deployment and reach it from the agent at `http://host.docker.internal:<port>`, or anywhere on the network.
+
+A compose file of your own can sit next to the core ones and be started with the same `versions.env`:
+
+```bash
+docker compose --env-file versions.env -f my-backend/docker-compose.yaml up -d
+```
+
+To add services to a participant's own project instead, list both files: Compose merges them.
+
+```bash
+docker compose --env-file versions.env \
+  -f deployment/standalone/docker-compose.standalone.provider.yaml \
+  -f my-backend/docker-compose.provider-extra.yaml up -d
+```
+
+## 2. Connectors
+
+A **connector template** says how to call the backend and which parameters that needs; a **connector instance** fills them in for one distribution. The demo ones, in [`static/catalog/`](../../static/catalog/), are a starting point:
+
+- `07-connector-template-pull.json`: `interaction.mode: PULL`, a URL, methods and headers.
+- `08-connector-template-push.json`: `interaction.mode: PUSH`, with a subscribe call (its body gets the provider's own ingress URL, `{{__SYS_OWN_URL_DOCKER__}}{{__RUNTIME_INGRESS__}}`) and an unsubscribe call that can use fields of the subscribe response (`{{__RUNTIME_JSON_{.subscription.data.ID}__}}`).
+
+Both authenticate with an OAuth2 password grant. `authentication` also takes `NO_AUTH` and `BEARER_TOKEN` with a fixed token.
+
+## 3. The catalog entry
+
+Create, in order, against the provider's API (`/api/v1/catalog-agent/...` and `/api/v1/connector/...`): the dataset, one distribution per format (`HTTP_PULL`, `HTTP_PUSH`), the policies, the templates and the instances. [`catalog.py`](../../cli/eunomia/commands/catalog.py) does exactly that for the demo payloads and is short enough to copy. The provider console (<http://127.0.0.1:1200/admin/login>) does it by hand too.
+
+Then the usual flow works with your dataset:
+
+```bash
+./eunomia e2e --dataset "my dataset" --no-data-pull   # the data check expects the robots
+```
+
+## Building on this repository
+
+A project of your own (another demo, a pilot, an internal deployment) can keep this repository as its base rather than a copy: as a git submodule or a pinned checkout, with its own compose files, configuration and catalog next to it. What makes that work:
+
+- the image versions live in one file, `versions.env`;
+- container and project names take a prefix, `EUNOMIA_PREFIX`;
+- the configs reach their services by service name, not by container name;
+- the database and demo ports are variables;
+- the compose files can be merged with your own.
