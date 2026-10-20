@@ -38,7 +38,7 @@ from .onboard import Peer
 NAME_RE = re.compile(r"^[a-z][a-z0-9-]{1,30}$")
 RESERVED = {"all", "demo", "prod", "instances"}
 READINESS = {"agent": "/api/v1/readiness", "authority": "/readiness"}
-CONSOLE = {"agent": "/admin/login", "authority": "/admin/home"}
+CONSOLE = {"agent": "/admin", "authority": "/admin"}
 
 
 @dataclass(frozen=True)
@@ -375,7 +375,7 @@ def _print(inst: Instance) -> None:
     login = "   (eunomia / eunomia)" if inst.kind == "agent" else ""
     lines = [
         f"\n{inst.kind.capitalize()} {inst.name!r}:",
-        f"  Console          {inst.display_url}{CONSOLE[inst.kind]}{login}",
+        f"  Console          {console(inst)}{login}",
         f"  API              {inst.display_url}/api/v1",
         f"  From containers  {inst.peer.docker_url}",
     ]
@@ -397,6 +397,10 @@ def state(inst: Instance) -> str:
     return out or "not created"
 
 
+def console(inst: Instance) -> str:
+    return inst.display_url + CONSOLE[inst.kind]
+
+
 def list_instances() -> None:
     rows = all_instances()
     if not rows:
@@ -407,10 +411,13 @@ def list_instances() -> None:
             "  eunomia agent add bob --authority authority"
         )
         return
-    print(f"{'NAME':<18} {'KIND':<16} {'WHERE':<7} {'URL':<34} STATE")
+    table = [("NAME", "KIND", "WHERE", "URL", "ADMIN", "STATE")]
     for i in rows:
         kind = i.kind + (f" ({i.role})" if i.role else "")
-        print(f"{i.name:<18} {kind:<16} {i.location:<7} {i.display_url:<34} {state(i)}")
+        table.append((i.name, kind, i.location, i.display_url, console(i), state(i)))
+    widths = [max(len(row[col]) for row in table) for col in range(len(table[0]) - 1)]
+    for row in table:
+        print("  ".join(cell.ljust(w) for cell, w in zip(row, widths)) + "  " + row[-1])
 
 
 def containers(inst: Instance) -> List[Dict[str, str]]:
