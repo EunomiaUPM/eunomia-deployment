@@ -1,18 +1,19 @@
 # =====================================================================
-# Autoridad independiente (Heimdall + wallet Fafnir + Postgres).
+# Extra authority: Heimdall + Fafnir wallet + Postgres.
 #
-# Plantilla usada por hack.sh / hack.ps1 ("authority add"). No la lances a
-# mano: necesita versions.env + instances/<nombre>/instance.env y el
-# proyecto propio (-p hack-<nombre>).
+# Template for `eunomia authority add`. Not meant to be run by hand: it
+# needs versions.env, instances/<name>/instance.env and its own project
+# (-p eunomia-<name>), which the CLI passes.
 #
-# Variables (instance.env): INSTANCE, HTTP_PORT, DB_PORT.
-# Las rutas son relativas a este fichero.
+# instance.env: INSTANCE, HTTP_PORT, DB_PORT. Paths are relative to this
+# file. The generated config in instances/<name>/config/ reaches the
+# services below by name (db, wallet).
 # =====================================================================
 
 services:
   db:
     container_name: "${INSTANCE:?}-db"
-    image: postgres
+    image: postgres:18
     restart: always
     env_file:
       - ./../../static/envs/heimdall/db.env.example
@@ -21,14 +22,15 @@ services:
     volumes:
       - db-data:/var/lib/postgresql
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 30
 
   wallet-setup:
     container_name: "${INSTANCE}-wallet-setup"
-    image: "${FAFNIR_IMAGE:?define FAFNIR_IMAGE en versions.env}:${FAFNIR_TAG:?define FAFNIR_TAG en versions.env}"
+    image: "${FAFNIR_IMAGE:?set FAFNIR_IMAGE in versions.env}:${FAFNIR_TAG:?set FAFNIR_TAG in versions.env}"
+    platform: linux/amd64
     restart: "no"
     depends_on:
       db:
@@ -37,14 +39,15 @@ services:
       - ./../../instances/${INSTANCE}/config/fafnir.yaml:/app/static/fafnir/config.yaml
       - ./../../instances/${INSTANCE}/vault/secrets/db.json.example:/app/vault/secrets/db.json.example
     env_file:
-      - ./../../static/envs/fafnir/env.example
+      - ./../../static/envs/heimdall/fafnir.env.example
     environment:
       RUST_BACKTRACE: 1
-    command: [ "setup", "--env-file", "/app/static/fafnir/config.yaml" ]
+    command: ["setup", "--env-file", "/app/static/fafnir/config.yaml"]
 
   wallet:
     container_name: "${INSTANCE}-wallet"
     image: "${FAFNIR_IMAGE}:${FAFNIR_TAG}"
+    platform: linux/amd64
     restart: always
     depends_on:
       wallet-setup:
@@ -53,12 +56,12 @@ services:
       - ./../../instances/${INSTANCE}/config/fafnir.yaml:/app/static/fafnir/config.yaml
       - ./../../instances/${INSTANCE}/vault/secrets/db.json.example:/app/vault/secrets/db.json.example
     env_file:
-      - ./../../static/envs/fafnir/env.example
+      - ./../../static/envs/heimdall/fafnir.env.example
     environment:
       RUST_BACKTRACE: 1
-    command: [ "start", "--env-file", "/app/static/fafnir/config.yaml" ]
+    command: ["start", "--env-file", "/app/static/fafnir/config.yaml"]
     healthcheck:
-      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:7001/readiness" ]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7001/readiness"]
       interval: 5s
       timeout: 2s
       retries: 30
@@ -67,27 +70,29 @@ services:
 
   heimdall-setup:
     container_name: "${INSTANCE}-setup"
-    image: "${HEIMDALL_IMAGE:?define HEIMDALL_IMAGE en versions.env}:${HEIMDALL_TAG:?define HEIMDALL_TAG en versions.env}"
+    image: "${HEIMDALL_IMAGE:?set HEIMDALL_IMAGE in versions.env}:${HEIMDALL_TAG:?set HEIMDALL_TAG in versions.env}"
+    platform: linux/amd64
     restart: "no"
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - ./../../instances/${INSTANCE}/config/:/app/static/config
-      - ./../../static/specs/heimdall/openapi/:/app/static/specs/openapi/
+      - ./../../static/specs/heimdall:/app/static/specs
       - ./../../instances/${INSTANCE}/vault:/app/vault
     env_file:
       - ./../../static/envs/heimdall/heimdall.env.example
     environment:
       RUST_BACKTRACE: 1
-    command: [ "setup", "--env-file", "/app/static/config/authority.yaml" ]
+    command: ["setup", "--env-file", "/app/static/config/authority.yaml"]
 
   heimdall:
     container_name: "${INSTANCE}"
     image: "${HEIMDALL_IMAGE}:${HEIMDALL_TAG}"
+    platform: linux/amd64
     restart: always
     ports:
-      # Mismo puerto dentro y fuera: el DID es did:web:host.docker.internal%3A<puerto>
+      # Same port inside and out: the authority advertises http://host.docker.internal:<port>
       - "${HTTP_PORT:?}:${HTTP_PORT}"
     depends_on:
       heimdall-setup:
@@ -96,15 +101,15 @@ services:
         condition: service_healthy
     volumes:
       - ./../../instances/${INSTANCE}/config/:/app/static/config
-      - ./../../static/specs/heimdall/openapi/:/app/static/specs/openapi/
+      - ./../../static/specs/heimdall:/app/static/specs
       - ./../../instances/${INSTANCE}/vault:/app/vault
     env_file:
       - ./../../static/envs/heimdall/heimdall.env.example
     environment:
       RUST_BACKTRACE: 1
-    command: [ "start", "--env-file", "/app/static/config/authority.yaml" ]
+    command: ["start", "--env-file", "/app/static/config/authority.yaml"]
     healthcheck:
-      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:${HTTP_PORT}/readiness" ]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:${HTTP_PORT}/readiness"]
       interval: 5s
       timeout: 2s
       retries: 60

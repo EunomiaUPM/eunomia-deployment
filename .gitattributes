@@ -1,4 +1,5 @@
-# Scripts que se ejecutan con bash (también desde Git Bash en Windows)
-hack.sh text eol=lf
-deployment/hack/tools/*.sh text eol=lf
-hack.cmd text eol=crlf
+# Run by sh/bash, also from Git Bash on Windows: always LF
+eunomia text eol=lf
+*.sh text eol=lf
+# Run by cmd.exe: CRLF
+eunomia.cmd text eol=crlf

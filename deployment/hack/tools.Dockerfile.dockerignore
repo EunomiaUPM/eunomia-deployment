@@ -1,3 +1,0 @@
-*
-!scripts/*.sh
-!deployment/hack/tools/*.sh
