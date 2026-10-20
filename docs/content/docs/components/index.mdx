@@ -5,7 +5,7 @@ description: "The four Rust components every EUNOMIA data space is made of, and 
 
 | Component | Role | Image (`versions.env`) | Repository |
 | --- | --- | --- | --- |
-| [DS-Agent](/docs/components/ds-agent) | provider and consumer agent | `quay.io/eunomia_upm/ds-agent:v0.4.0` | [EunomiaUPM/ds-agent](https://github.com/EunomiaUPM/ds-agent) |
+| [DS-Agent](/docs/components/ds-agent) | agent: publishes, negotiates, exchanges | `quay.io/eunomia_upm/ds-agent:v0.4.0` | [EunomiaUPM/ds-agent](https://github.com/EunomiaUPM/ds-agent) |
 | [Heimdall](/docs/components/heimdall) | authority | `quay.io/eunomia_upm/heimdall:v1.5.0` | [EunomiaUPM/heimdall](https://github.com/EunomiaUPM/heimdall) |
 | [Fafnir](/docs/components/fafnir) | wallet, next to each of them | `quay.io/eunomia_upm/fafnir-wallet:v0.2.0` | [EunomiaUPM/fafnir-wallet](https://github.com/EunomiaUPM/fafnir-wallet) |
 | [Ymir](/docs/components/ymir) | shared core library | built into the three above | [EunomiaUPM/ymir](https://github.com/EunomiaUPM/ymir) |
@@ -22,13 +22,13 @@ The versions are the ones pinned in [`versions.env`](https://github.com/EunomiaU
      credentials │ (OID4VCI / OID4VP, GNAP)
       ┌──────────┴───────────┐
 ┌─────┴─────┐          ┌─────┴─────┐
-│ DS-Agent  │◄── DSP ─►│ DS-Agent  │
-│ provider  │          │ consumer  │
-└─────┬─────┘          └───────────┘
-      │ data plane       each with Fafnir, Postgres and Redis
-┌─────┴─────┐
-│ backend   │
-└───────────┘
+│ DS-Agent  │◄── DSP ─►│ DS-Agent  │   any number of agents,
+│  alice    │          │   bob     │   each with Fafnir,
+└─────┬─────┘          └─────┬─────┘   Postgres and Redis
+      │ data plane           │
+┌─────┴─────┐          ┌─────┴─────┐
+│ backend   │          │ backend   │
+└───────────┘          └───────────┘
 ```
 
 Every node is a set of containers in its own compose project:
@@ -43,6 +43,6 @@ The `setup` jobs run the database migrations and derive the identity material fr
 ## Common traits
 
 - **Rust**, on Tokio, with Axum for HTTP and SeaORM on PostgreSQL.
-- **Configured by one YAML file**, passed with `-e` / `--env-file`, plus env files for the vault. The standalone ones live in [`static/config/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/static/config).
+- **Configured by one YAML file**, passed with `-e` / `--env-file`, plus env files for the vault. The templates for local instances, and the production files, live in [`static/config/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/static/config).
 - **Two commands**: `setup` (migrate and prepare) and `start` (serve).
 - **amd64 images**. On Apple Silicon Docker Desktop runs them under emulation.

@@ -1,19 +1,19 @@
 ---
 title: "Production"
-description: "One participant per server, with a domain, TLS, HashiCorp Vault and did:web."
+description: "One authority or agent per server, with a domain, TLS, HashiCorp Vault and did:web, managed by name from anywhere."
 ---
 
-Unlike the [standalone deployment](/docs/deployment/standalone), prod puts each participant on its own server, with a domain name, TLS certificates and HashiCorp Vault for the secrets. The compose files live in [`deployment/prod/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/deployment/prod).
+Unlike a [local data space](/docs/deployment/local), production puts each authority and each agent on its own server, with a domain name, TLS certificates and HashiCorp Vault for the secrets. The compose files live in [`deployment/prod/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/deployment/prod): one for an authority, one for an agent, whichever role it plays.
 
 | Component | Role | Guide |
 | --- | --- | --- |
-| **Heimdall** | Dataspace authority: registers participants, issues credentials, enforces governance | [Authority in production](/docs/deployment/production/authority) |
-| **Agent** | Participant: provider, consumer or both | [Agent in production](/docs/deployment/production/agent) |
+| **Heimdall** | authority: admits agents, issues their credentials | [Authority in production](/docs/deployment/production/authority) |
+| **Agent** | publishes a catalog, negotiates with any other agent, exchanges data | [Agent in production](/docs/deployment/production/agent) |
 
 Each one has its own compose file and its own Vault. They can share a server or not.
 
 <Callout type="warn">
-**Deploy the authority first.** Agents register with a running Heimdall to get their credentials before they can take part in the dataspace.
+**Deploy the authority first.** Agents get their credentials from a running authority before they can take part in the data space.
 </Callout>
 
 <Callout type="warn">
@@ -28,36 +28,62 @@ The prod configs have not been run against a real Vault since the move to the Fa
 
 ## Steps
 
-1. Deploy the authority: [Authority in production](/docs/deployment/production/authority).
-2. Deploy one or more agents: [Agent in production](/docs/deployment/production/agent).
-3. On each server, or with the [deploy workflow](/docs/deployment/production/automated-deployment):
+<Steps>
+<Step>
 
-   ```bash
-   ./eunomia up authority --env prod     # on the authority server, first
-   ./eunomia up provider  --env prod     # on the provider server
-   ./eunomia up consumer  --env prod     # on the consumer server
-   ```
+### Deploy the servers
 
-4. Onboarding and the catalog span servers: run them once every node is up, from any machine that reaches the three public URLs (`AUTHORITY_URL`, `PROVIDER_URL`, `CONSUMER_URL` in `.env`):
+Follow [Authority in production](/docs/deployment/production/authority) on the authority's server and [Agent in production](/docs/deployment/production/agent) on each agent's server, or use the [deploy workflow](/docs/deployment/production/automated-deployment). On each server, from the checkout:
 
-   ```bash
-   ./eunomia onboard --env prod
-   ./eunomia catalog populate --env prod
-   ./eunomia e2e --env prod
-   ```
+```bash
+./eunomia prod up authority    # on the authority's server, first
+./eunomia prod up agent        # on each agent's server
+./eunomia prod status agent    # its containers
+./eunomia prod logs agent -f   # its logs
+```
 
-   The catalog points at the demo factory. To share your own data, see [Extending the deployment](/docs/guides/extending).
+</Step>
+<Step>
 
-## Restarting a node
+### Register them by name
 
-`./eunomia restart <node…>` restarts nodes on their servers over SSH, with the `<NODE>_SSH_*` settings in `.env` (see [`.env.example`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/.env.example)). It recreates only the agent and its wallet: the databases have no volume, so recreating them would wipe the participant's state. `--dry-run` prints the SSH commands instead.
+From any machine that reaches their public URLs (your laptop, a CI runner), add them to the registry as remote instances:
+
+```bash
+./eunomia remote add authority --kind authority --url https://authority.example.org
+./eunomia remote add acme --kind agent --url https://acme.example.org --ssh deploy@acme.example.org --path /opt/eunomia/deployment/prod
+./eunomia remote add globex --kind agent --url https://globex.example.org
+./eunomia ls
+```
+
+`--ssh` and `--path` are only needed for `eunomia restart`. From then on every command takes them by name, exactly like local instances.
+
+</Step>
+<Step>
+
+### Onboard and exchange
+
+```bash
+./eunomia onboard acme globex --authority authority
+./eunomia catalog populate acme                    # or publish your own data
+./eunomia e2e --consumer globex --provider acme
+```
+
+The demo catalog points at the demo factory, which has to run somewhere the agent reaches (`DOCKER_FACTORY_*_URL`). To share your own data, see [Extending the deployment](/docs/guides/extending).
+
+</Step>
+</Steps>
+
+## Restarting an instance
+
+`./eunomia restart <name…>` restarts remote instances on their servers over SSH, with the access given to `remote add`. It recreates only the service and its wallet: the databases have no volume, so recreating them would wipe the instance's state. A password, if the server needs one, comes from `<NAME>_SSH_PASS` in the environment. `--dry-run` prints the SSH commands instead.
 
 ## Wallet and images
 
 Each component runs its own [Fafnir](https://github.com/EunomiaUPM/fafnir-wallet) wallet inside its compose file: there is no external wallet service or account. The wallet stores its keys and DID in the component's own database and is reachable only on the compose network.
 
-The images are pinned in [`versions.env`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/versions.env), the same file standalone uses. They are amd64 only. `./eunomia images --env prod --check` lists newer tags.
+The images are pinned in [`versions.env`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/versions.env), the same file local instances use. They are amd64 only. `./eunomia images --check` lists newer tags.
 
 ## DID method
 
-Prod uses **`did:web`** on each participant's domain, the method Gaia-X supports. Standalone uses `did:jwk` instead; [Identity and trust](/docs/architecture/trust#identifiers) explains why.
+Production uses **`did:web`** on each participant's domain, the method Gaia-X supports. Local instances use `did:jwk` instead; [Identity and trust](/docs/architecture/trust#identifiers) explains why.

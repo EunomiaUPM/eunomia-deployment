@@ -16,7 +16,7 @@ description: "The wallet. A sidecar next to every agent and authority that holds
                                          the node's Postgres
 ```
 
-The node reaches it by compose service name (`provider-fafnir-wallet`, `heimdall-fafnir-wallet`…) on port 7001. The wallet **publishes no port to the host**: it trusts its network, so only its own node may reach it.
+The node reaches it by compose service name (`wallet` in a local instance, `agent-fafnir-wallet` or `heimdall-fafnir-wallet` in production) on port 7001. The wallet **publishes no port to the host**: it trusts its network, so only its own node may reach it.
 
 Once, the node links its wallet (`POST /api/v1/wallet/link` on the node, the first step of `eunomia onboard`): the wallet reads the node's key from the vault, creates its DID (`did:jwk` or `did:web`, as the node's configuration says) and marks it as the default.
 
@@ -29,7 +29,7 @@ fafnir-wallet:
   command: ["start", "--env-file", "/app/static/fafnir/config.yaml"]
 ```
 
-Its configuration is short: where it listens, its database (the node's own PostgreSQL, by service name) and whether the vault is real. See [`fafnir.provider.yaml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/config/provider/standalone/fafnir.provider.yaml).
+Its configuration is short: where it listens, its database (the node's own PostgreSQL, by service name) and whether the vault is real. See the [agent's wallet template](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/config/agent/standalone/fafnir.template.yaml).
 
 ## HTTP API
 

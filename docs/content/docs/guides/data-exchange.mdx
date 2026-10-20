@@ -5,17 +5,19 @@ description: "The catalog request, the contract negotiation and the pull and pus
 
 `./eunomia e2e` runs the whole sequence below and checks the result of every step. This page shows what it does, so you can reproduce it from your own code or from the consoles.
 
-All the calls go to the **consumer** or the **provider** agent (`http://127.0.0.1:1100` and `:1200`). The addresses inside the bodies are the ones the agents use to reach each other: `http://host.docker.internal:<port>`.
+The examples use two agents from the [quickstart](/docs/quickstart): **bob**, the consumer in this exchange, and **alice**, the provider, whose catalog bob negotiates for. Any two agents work the same way, and they can swap roles in the next exchange.
+
+Every call goes to one of the two agents, at the URL `eunomia ls` shows (`http://127.0.0.1:<port>`). The addresses inside the bodies are the ones the agents use to reach each other: `http://host.docker.internal:<port>`.
 
 ## Before: who is who
 
 ```http
 GET /api/v1/mates/myself          on each agent → { "participant_id": "<its DID>", … }
-GET /api/v1/mates/all             on the consumer → the provider must be there with a token
-GET /.well-known/dspace-version/2025-1   on the consumer → { "path": "/dsp/current", … }
+GET /api/v1/mates/all             on bob → alice must be there with a token
+GET /.well-known/dspace-version/2025-1   on bob → { "path": "/dsp/current", … }
 ```
 
-The consumer's callback address is `http://host.docker.internal:1100` plus that path. No token for the provider means the consumer is not connected: `./eunomia onboard`.
+bob's callback address is `http://host.docker.internal:<bob's port>` plus that path. No token for alice means bob is not connected to her: `./eunomia connect bob alice`.
 
 ## 1. Catalog
 
@@ -59,7 +61,7 @@ POST /dsp/current/transfers/rpc/setup-start                (provider)
 { "consumerPid": "…", "providerPid": "…" }
 ```
 
-The start answer carries the data plane address, `http://host.docker.internal:1200/dataplane/proxy/<transfer id>`. A `GET` on it (from the host: `http://127.0.0.1:1200/…`) returns the factory's robots: the provider fetched them with its own Keycloak token. The same factory URL without a token answers `401`, which is how `e2e` proves the consumer never had the factory's credentials.
+The start answer carries the data plane address, `http://host.docker.internal:<alice's port>/dataplane/proxy/<transfer id>`. A `GET` on it (from the host: `http://127.0.0.1:<alice's port>/…`) returns the factory's robots: alice fetched them with her own Keycloak token. The same factory URL without a token answers `401`, which is how `e2e` proves the consumer never had the factory's credentials.
 
 The transfer can be paused and resumed (`setup-suspension`, then `setup-start` on the consumer) and is closed with `setup-completion` on the provider.
 
@@ -77,13 +79,14 @@ When the provider starts it, its push connector subscribes to the factory with i
 
 ## From the consoles
 
-The same flow is available by hand in the consumer console ([http://127.0.0.1:1100/admin/login](http://127.0.0.1:1100/admin/login), `eunomia` / `eunomia`): browse the provider's catalog, request a contract on the dataset, and once it is finalized start a transfer from the agreement. The provider console ([http://127.0.0.1:1200/admin/login](http://127.0.0.1:1200/admin/login)) shows the same negotiations and transfers from the other side.
+The same flow is available by hand in bob's console (his URL plus `/admin/login`, `eunomia` / `eunomia`): browse alice's catalog, request a contract on the dataset, and once it is finalized start a transfer from the agreement. Alice's console shows the same negotiations and transfers from the other side.
 
-## Between other participants
+## Any two agents
 
-`e2e`, `demo` and `catalog` take `--consumer` and `--provider` to use [extra participants](/docs/deployment/instances) instead of the standalone ones:
+`e2e` and `demo` take the two roles by name, so any pair of agents works, local or remote:
 
 ```bash
-./eunomia catalog populate --provider seller
-./eunomia e2e --consumer buyer --provider seller
+./eunomia catalog populate carol
+./eunomia e2e --consumer alice --provider carol
+./eunomia demo events --consumer bob --provider carol
 ```

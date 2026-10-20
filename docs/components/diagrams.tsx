@@ -101,17 +101,17 @@ function Frame({ viewBox, title, children }: { viewBox: string; title: string; c
 /** Authority, provider, consumer, their wallets, the backend and the consumer application. */
 export function Architecture() {
   return (
-    <Frame viewBox="0 0 760 440" title="EUNOMIA architecture: an authority, a provider and a consumer">
+    <Frame viewBox="0 0 760 440" title="EUNOMIA architecture: an authority and two agents, each taking a role in an exchange">
       <Box x={270} y={16} w={220} h={86} title="Authority" subtitle="Heimdall · issues credentials" chip="Fafnir wallet" accent />
-      <Box x={30} y={186} w={240} h={86} title="Provider" subtitle="DS-Agent · catalog, contracts" chip="Fafnir wallet" />
-      <Box x={490} y={186} w={240} h={86} title="Consumer" subtitle="DS-Agent · negotiates, transfers" chip="Fafnir wallet" />
-      <Box x={30} y={354} w={240} h={70} title="Data backend" subtitle="the demo factory, or yours" />
-      <Box x={490} y={354} w={240} h={70} title="Consumer application" subtitle="your code, e2e, demo events" />
+      <Box x={30} y={186} w={240} h={86} title="Agent alice" subtitle="provider in this exchange" chip="Fafnir wallet" />
+      <Box x={490} y={186} w={240} h={86} title="Agent bob" subtitle="consumer in this exchange" chip="Fafnir wallet" />
+      <Box x={30} y={354} w={240} h={70} title="alice’s data backend" subtitle="the demo factory, or yours" />
+      <Box x={490} y={354} w={240} h={70} title="bob’s application" subtitle="your code, e2e, demo events" />
 
       <Arrow d="M 320 102 C 260 136 190 156 160 182" label="credentials · OID4VCI" lx={200} ly={140} anchor="end" />
       <Arrow d="M 440 102 C 500 136 570 156 600 182" label="credentials · OID4VCI / OID4VP" lx={560} ly={140} anchor="start" />
-      <Arrow d="M 274 214 L 486 214" label="GNAP grant · DSP catalog" lx={380} ly={206} />
-      <Arrow d="M 486 240 L 274 240" label="contract · ODRL" lx={380} ly={258} />
+      <Arrow d="M 486 214 L 274 214" label="GNAP grant · DSP catalog" lx={380} ly={206} />
+      <Arrow d="M 274 240 L 486 240" label="contract · ODRL" lx={380} ly={258} />
       <Arrow d="M 274 262 C 380 300 380 300 486 262" label="data plane: pull, push" lx={380} ly={312} dashed />
       <Arrow d="M 150 276 L 150 350" label="OAuth2 · provider-held token" lx={160} ly={318} anchor="start" />
       <Arrow d="M 610 276 L 610 350" label="data, events" lx={620} ly={318} anchor="start" />
@@ -162,8 +162,8 @@ export function Transfers() {
       <text x={16} y={30} className="fill-fd-foreground" fontSize={13} fontWeight={700}>
         PULL
       </text>
-      <Box x={16} y={44} w={170} h={60} title="Consumer app" subtitle="GET the proxy URL" />
-      <Box x={296} y={44} w={170} h={60} title="Provider" subtitle="data plane proxy" accent />
+      <Box x={16} y={44} w={170} h={60} title="Consumer’s app" subtitle="GET the proxy URL" />
+      <Box x={296} y={44} w={170} h={60} title="Provider agent" subtitle="data plane proxy" accent />
       <Box x={574} y={44} w={170} h={60} title="Backend" subtitle="GET /robots/" />
       <Arrow d="M 190 66 L 292 66" label="request" lx={241} ly={58} />
       <Arrow d="M 470 66 L 570 66" label="+ OAuth2 token" lx={520} ly={58} />
@@ -174,14 +174,14 @@ export function Transfers() {
         PUSH
       </text>
       <Box x={16} y={184} w={170} h={60} title="Backend" subtitle="POSTs every event" />
-      <Box x={210} y={184} w={150} h={60} title="Provider" subtitle="ingress" accent />
-      <Box x={384} y={184} w={150} h={60} title="Consumer" subtitle="forwards" />
+      <Box x={210} y={184} w={150} h={60} title="Provider agent" subtitle="ingress" accent />
+      <Box x={384} y={184} w={150} h={60} title="Consumer agent" subtitle="forwards" />
       <Box x={558} y={184} w={186} h={60} title="Your endpoint" subtitle="dataAddress.endpoint" />
       <Arrow d="M 190 214 L 206 214" />
       <Arrow d="M 364 214 L 380 214" />
       <Arrow d="M 538 214 L 554 214" />
       <text x={380} y={272} textAnchor="middle" className="fill-fd-muted-foreground" fontSize={11}>
-        On start the provider subscribes to the backend; on completion it unsubscribes.
+        On start the provider agent subscribes to the backend; on completion it unsubscribes.
       </text>
     </Frame>
   );

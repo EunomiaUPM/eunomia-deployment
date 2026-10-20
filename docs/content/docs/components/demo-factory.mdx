@@ -1,11 +1,11 @@
 ---
 title: "The demo factory"
-description: "The data backend the demo provider shares: a factory with robots, their yearly measures and the events they emit."
+description: "A data backend any agent can share: a factory with robots, their yearly measures and the events they emit."
 ---
 
-The provider of the standalone deployment shares the data of a **factory**: a fleet of robots, a year of production figures for each, and a stream of events the robots emit. It is a small Go service in [`services/demo-factory/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/services/demo-factory), with its own Postgres and a Keycloak in front, started by `./eunomia up` (or `./eunomia up demo`).
+The demo factory is a data backend any agent can share: a fleet of robots, a year of production figures for each, and a stream of events the robots emit. It is a small Go service in [`services/demo-factory/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/services/demo-factory), with its own Postgres and a Keycloak in front, started with `./eunomia demo up` and published by an agent with `./eunomia catalog populate <agent>`. Several agents can publish it at once.
 
-It is the backend the provider agent sits in front of: the consumer never calls it directly, and never sees its credentials.
+The agent that publishes it sits in front of it: the agents that consume it never call it directly, and never see its credentials.
 
 ## Pull: the robots
 
@@ -81,11 +81,11 @@ TOKEN=$(./eunomia demo token)
 curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:1210/robots/
 ```
 
-The provider agent does the same thing on its own: its connectors use the OAuth2 password grant against this Keycloak, and refresh the token when it expires.
+The publishing agent does the same thing on its own: its connectors use the OAuth2 password grant against this Keycloak, and refresh the token when it expires.
 
 ## In the catalog
 
-`./eunomia catalog populate` (and `up`) creates, from [`static/catalog/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/static/catalog):
+`./eunomia catalog populate <agent>` creates in that agent's catalog, from [`static/catalog/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/static/catalog):
 
 ```text
 Dataset: Factory Robots Dataset
@@ -102,14 +102,14 @@ Dataset: Factory Robots Dataset
     └── push → http://host.docker.internal:1220/subscriptions/subscribe, …/unsubscribe/{id}
 ```
 
-The connector URLs are the ones the **provider agent** uses, from its container. The push template subscribes with the provider's own ingress URL, and takes the subscription id for the unsubscribe from the subscribe response (`{.subscription.data.ID}`).
+The connector URLs are the ones the **publishing agent** uses, from its container. The push template subscribes with that agent's own ingress URL, and takes the subscription id for the unsubscribe from the subscribe response (`{.subscription.data.ID}`).
 
 ## Developing it
 
 ```bash
 cd services/demo-factory
 go build ./...
-docker compose --env-file ../../versions.env up -d --build   # or: ./eunomia up demo --build
+docker compose --env-file ../../versions.env up -d --build   # or: ./eunomia demo up --build
 ```
 
 The specs are in `services/demo-factory/specs/`: OpenAPI (also served at `/openapi.yaml`), protobuf and Postman collections.

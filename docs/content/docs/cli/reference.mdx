@@ -19,189 +19,292 @@ options:
   --images    also check every pinned image can be pulled
 ```
 
-## `eunomia up`
+## `eunomia authority`
 
-Start the deployment, onboard the participants and populate the catalog.
+Authorities: issue credentials and admit agents.
+
+### `eunomia authority add`
+
+Create and start an authority on free ports.
 
 ```text
-eunomia up [-h] [--env {standalone,prod}] [--no-onboarding] [--no-catalog] [--pull]
-                  [--build]
-                  [node ...]
+eunomia authority add [-h] [--role {eco,dataspace}] [name]
 
 positional arguments:
-  node                  authority, provider, consumer, demo, or all (default: all of them)
+  name                  default: authority-<random>
 
 options:
   -h, --help            show this help message and exit
-  --env {standalone,prod}
-                        standalone (default): every participant on this host. prod: real servers.
-  --no-onboarding       only start the stacks
-  --no-catalog          do not populate the provider catalog
-  --pull                pull the pinned images before starting
-  --build               rebuild the demo factory image
+  --role {eco,dataspace}
+                        eco (default) also issues Gaia-X credentials
+```
+
+## `eunomia agent`
+
+Agents: publish catalogs, negotiate, exchange data.
+
+### `eunomia agent add`
+
+Create and start an agent on free ports, and onboard it.
+
+```text
+eunomia agent add [-h] [--authority AUTHORITY] [--no-onboard] [name]
+
+positional arguments:
+  name                  default: agent-<random>
+
+options:
+  -h, --help            show this help message and exit
+  --authority AUTHORITY
+                        onboard it with this authority (default: the only one there is)
+  --no-onboard          only create and start it
+```
+
+## `eunomia remote`
+
+Instances running on other servers, known by URL.
+
+### `eunomia remote add`
+
+Register a remote authority or agent.
+
+```text
+eunomia remote add [-h] --kind {agent,authority} --url URL [--ssh USER@HOST] [--path PATH]
+                          name
+
+positional arguments:
+  name
+
+options:
+  -h, --help            show this help message and exit
+  --kind {agent,authority}
+  --url URL             its public URL, e.g. https://agent.example.org
+  --ssh USER@HOST       SSH access, for eunomia restart
+  --path PATH           its deployment/prod directory on the server, for eunomia restart
+```
+
+## `eunomia ls`
+
+Every instance, where it runs and its state.
+
+```text
+eunomia ls [-h]
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `eunomia up`
+
+Start registered local instances (default: all of them).
+
+```text
+eunomia up [-h] [name ...]
+
+positional arguments:
+  name
+
+options:
+  -h, --help  show this help message and exit
 ```
 
 ## `eunomia stop`
 
-Stop nodes or instances, keeping their data.
+Stop local instances, keeping their data (default: all, and the demo).
 
 ```text
-eunomia stop [-h] [--env {standalone,prod}] [target ...]
+eunomia stop [-h] [name ...]
 
 positional arguments:
-  target                authority, provider, consumer, demo, or all (default: all of them), or an
-                        instance name
+  name
 
 options:
-  -h, --help            show this help message and exit
-  --env {standalone,prod}
-                        standalone (default): every participant on this host. prod: real servers.
+  -h, --help  show this help message and exit
+```
+
+## `eunomia rm`
+
+Remove instances: containers, volumes, configuration and identity.
+
+```text
+eunomia rm [-h] [-y] name [name ...]
+
+positional arguments:
+  name
+
+options:
+  -h, --help  show this help message and exit
+  -y, --yes   do not ask for confirmation
 ```
 
 ## `eunomia down`
 
-Remove the standalone deployment, identities included.
+Remove every local instance and the demo factory.
 
 ```text
-eunomia down [-h] [-y] [-n] [--images] [--keep-identities]
+eunomia down [-h] [-y] [-n]
 
 options:
-  -h, --help         show this help message and exit
-  -y, --yes          do not ask for confirmation
-  -n, --dry-run      show what would be removed
-  --images           also remove locally built images
-  --keep-identities  keep vault/, so the agents keep their DIDs
+  -h, --help     show this help message and exit
+  -y, --yes      do not ask for confirmation
+  -n, --dry-run  show what would be removed
 ```
 
 ## `eunomia status`
 
-Containers and readiness of every node, or of one instance.
+Every instance and the demo factory, or one instance in detail.
 
 ```text
-eunomia status [-h] [--env {standalone,prod}] [name]
+eunomia status [-h] [name]
 
 positional arguments:
-  name                  an instance name (default: the standalone deployment)
+  name
 
 options:
-  -h, --help            show this help message and exit
-  --env {standalone,prod}
-                        standalone (default): every participant on this host. prod: real servers.
+  -h, --help  show this help message and exit
 ```
 
 ## `eunomia logs`
 
-Logs of a node, an instance or any container.
+Logs of an instance, of the demo factory or of any container.
 
 ```text
-eunomia logs [-h] [--env {standalone,prod}] [-f] [--tail TAIL] target [services ...]
+eunomia logs [-h] [-f] [--tail TAIL] target [services ...]
 
 positional arguments:
-  target                authority, provider, consumer, demo, an instance or a container name
-  services              limit to these compose services
+  target        an instance name, 'demo', or a container name
+  services      limit to these compose services
 
 options:
-  -h, --help            show this help message and exit
-  --env {standalone,prod}
-                        standalone (default): every participant on this host. prod: real servers.
+  -h, --help    show this help message and exit
   -f, --follow
-  --tail TAIL           lines per container (default: 200, or 'all')
+  --tail TAIL   lines per container (default: 200, or 'all')
 ```
 
 ## `eunomia onboard`
 
-Link wallets, register, get the Gaia-X credentials, connect.
+Wallets, membership and Gaia-X credentials for agents.
 
 ```text
-eunomia onboard [-h] [--env {standalone,prod}]
-                       [{wallets,register,gaia,connect}] [{provider,consumer}]
+eunomia onboard [-h] [--authority AUTHORITY] agent [agent ...]
 
 positional arguments:
-  {wallets,register,gaia,connect}
-                        run a single step (default: all of them, in order)
-  {provider,consumer}   for register: who registers
+  agent
 
 options:
   -h, --help            show this help message and exit
-  --env {standalone,prod}
-                        standalone (default): every participant on this host. prod: real servers.
+  --authority AUTHORITY
+                        default: the only authority there is
+```
+
+## `eunomia connect`
+
+GNAP handshake: give one agent a token for another.
+
+```text
+eunomia connect [-h] [--both] agent to
+
+positional arguments:
+  agent       the agent that connects
+  to          the agent it connects to
+
+options:
+  -h, --help  show this help message and exit
+  --both      connect them the other way round too
 ```
 
 ## `eunomia catalog`
 
-Provider catalog.
+An agent's catalog.
 
 ### `eunomia catalog populate`
 
-Create the demo factory dataset, policies and connectors.
+Load the demo factory dataset, policies and connectors into an agent.
 
 ```text
-eunomia catalog populate [-h] [--force] [--env {standalone,prod}] [--provider PROVIDER]
+eunomia catalog populate [-h] [--force] agent
+
+positional arguments:
+  agent
 
 options:
-  -h, --help            show this help message and exit
-  --force               create them again even if they exist
-  --env {standalone,prod}
-                        standalone (default): every participant on this host. prod: real servers.
-  --provider PROVIDER   provider to use: an instance name (default: the standalone provider)
+  -h, --help  show this help message and exit
+  --force     create them again even if they exist
 ```
 
 ### `eunomia catalog show`
 
-List datasets, distributions and connector instances.
+List an agent's datasets, distributions and connector instances.
 
 ```text
-eunomia catalog show [-h] [--env {standalone,prod}] [--provider PROVIDER]
+eunomia catalog show [-h] agent
+
+positional arguments:
+  agent
 
 options:
-  -h, --help            show this help message and exit
-  --env {standalone,prod}
-                        standalone (default): every participant on this host. prod: real servers.
-  --provider PROVIDER   provider to use: an instance name (default: the standalone provider)
+  -h, --help  show this help message and exit
 ```
 
 ## `eunomia e2e`
 
-Negotiate, then pull and push data end to end.
+Two agents: negotiate, then pull and push data end to end.
 
 ```text
-eunomia e2e [-h] [--env {standalone,prod}] [--dataset DATASET] [--list-datasets]
+eunomia e2e [-h] --consumer AGENT --provider AGENT [--dataset DATASET] [--list-datasets]
                    [--keep-open] [--no-suspend] [--no-data-pull] [--no-push] [-v]
-                   [--consumer CONSUMER] [--provider PROVIDER]
 
 options:
-  -h, --help            show this help message and exit
-  --env {standalone,prod}
-                        standalone (default): every participant on this host. prod: real servers.
-  --dataset DATASET     substring of the dataset title (default: the demo factory dataset)
-  --list-datasets       list the catalog and exit
-  --keep-open           leave the pull transfer STARTED
-  --no-suspend          skip the suspend/resume leg
-  --no-data-pull        skip the data pull through the proxy
-  --no-push             skip the push transfer
-  -v, --verbose         dump every request and response
-  --consumer CONSUMER   consumer to use: an instance name (default: the standalone consumer)
-  --provider PROVIDER   provider to use: an instance name (default: the standalone provider)
+  -h, --help         show this help message and exit
+  --consumer AGENT   the agent that negotiates and receives
+  --provider AGENT   the agent whose catalog is used
+  --dataset DATASET  substring of the dataset title (default: the demo factory dataset)
+  --list-datasets    list the provider's catalog and exit
+  --keep-open        leave the pull transfer STARTED
+  --no-suspend       skip the suspend/resume leg
+  --no-data-pull     skip the data pull through the proxy
+  --no-push          skip the push transfer
+  -v, --verbose      dump every request and response
 ```
 
 ## `eunomia demo`
 
-Use the demo factory through the dataspace.
+The demo factory: run it, and use it through the data space.
+
+### `eunomia demo up`
+
+Start the demo factory.
+
+```text
+eunomia demo up [-h] [--build]
+
+options:
+  -h, --help  show this help message and exit
+  --build     rebuild its image
+```
+
+### `eunomia demo down`
+
+Remove the demo factory and its data.
+
+```text
+eunomia demo down [-h]
+
+options:
+  -h, --help  show this help message and exit
+```
 
 ### `eunomia demo robots`
 
 Negotiate and pull the robots, printed as JSON.
 
 ```text
-eunomia demo robots [-h] [--env {standalone,prod}] [--consumer CONSUMER]
-                           [--provider PROVIDER] [-v]
+eunomia demo robots [-h] --consumer AGENT --provider AGENT [-v]
 
 options:
-  -h, --help            show this help message and exit
-  --env {standalone,prod}
-                        standalone (default): every participant on this host. prod: real servers.
-  --consumer CONSUMER   consumer to use: an instance name (default: the standalone consumer)
-  --provider PROVIDER   provider to use: an instance name (default: the standalone provider)
+  -h, --help        show this help message and exit
+  --consumer AGENT  the agent that negotiates and receives
+  --provider AGENT  the agent whose catalog is used
   -v, --verbose
 ```
 
@@ -210,15 +313,12 @@ options:
 Negotiate and print the robot events as they are pushed.
 
 ```text
-eunomia demo events [-h] [--env {standalone,prod}] [--consumer CONSUMER]
-                           [--provider PROVIDER] [-n COUNT] [-v]
+eunomia demo events [-h] --consumer AGENT --provider AGENT [-n COUNT] [-v]
 
 options:
   -h, --help            show this help message and exit
-  --env {standalone,prod}
-                        standalone (default): every participant on this host. prod: real servers.
-  --consumer CONSUMER   consumer to use: an instance name (default: the standalone consumer)
-  --provider PROVIDER   provider to use: an instance name (default: the standalone provider)
+  --consumer AGENT      the agent that negotiates and receives
+  --provider AGENT      the agent whose catalog is used
   -n COUNT, --count COUNT
                         stop after this many events (default: Ctrl+C)
   -v, --verbose
@@ -235,144 +335,65 @@ options:
   -h, --help  show this help message and exit
 ```
 
-## `eunomia connector`
+## `eunomia prod`
 
-Extra connectors next to the standalone deployment.
+The production node of this server.
 
-### `eunomia connector add`
+### `eunomia prod up`
 
-Create and start a connector on free ports.
+Start this server's agent or authority (deployment/prod).
 
 ```text
-eunomia connector add [-h] [--role {consumer,provider}] [--onboard] [--authority AUTHORITY]
-                             [name]
+eunomia prod up [-h] [--pull] {agent,authority}
 
 positional arguments:
-  name                  default: conn-<random>
+  {agent,authority}
 
 options:
-  -h, --help            show this help message and exit
-  --role {consumer,provider}
-  --onboard             register it with the authority once it is up
-  --authority AUTHORITY
-                        authority to register with (implies --onboard)
+  -h, --help         show this help message and exit
+  --pull             pull the pinned images first
 ```
 
-## `eunomia authority`
+### `eunomia prod status`
 
-Extra authorities next to the standalone deployment.
-
-### `eunomia authority add`
-
-Create and start an authority on free ports.
+Its containers.
 
 ```text
-eunomia authority add [-h] [--role {eco,dataspace}] [name]
+eunomia prod status [-h] {agent,authority}
 
 positional arguments:
-  name                  default: auth-<random>
+  {agent,authority}
 
 options:
-  -h, --help            show this help message and exit
-  --role {eco,dataspace}
-                        eco (default) also issues Gaia-X credentials
+  -h, --help         show this help message and exit
 ```
 
-## `eunomia instances`
+### `eunomia prod logs`
 
-List the extra connectors and authorities.
-
-```text
-eunomia instances [-h]
-
-options:
-  -h, --help  show this help message and exit
-```
-
-## `eunomia start`
-
-Start an instance again.
+Its logs.
 
 ```text
-eunomia start [-h] name
+eunomia prod logs [-h] [-f] [--tail TAIL] {agent,authority} [services ...]
 
 positional arguments:
-  name
+  {agent,authority}
+  services           limit to these compose services
 
 options:
-  -h, --help  show this help message and exit
-```
-
-## `eunomia rm`
-
-Remove an instance: containers, volumes and configuration.
-
-```text
-eunomia rm [-h] [-y] name
-
-positional arguments:
-  name
-
-options:
-  -h, --help  show this help message and exit
-  -y, --yes   do not ask for confirmation
-```
-
-## `eunomia register`
-
-Register a connector with an authority.
-
-```text
-eunomia register [-h] [--authority AUTHORITY] connector
-
-positional arguments:
-  connector             provider, consumer or an instance
-
-options:
-  -h, --help            show this help message and exit
-  --authority AUTHORITY
-                        default: the standalone authority
-```
-
-## `eunomia connect`
-
-Connect a consumer to a provider (GNAP handshake).
-
-```text
-eunomia connect [-h] consumer provider
-
-positional arguments:
-  consumer
-  provider
-
-options:
-  -h, --help  show this help message and exit
-```
-
-## `eunomia gaia`
-
-Gaia-X credentials for a consumer, then connect it to a provider.
-
-```text
-eunomia gaia [-h] [--consumer CONSUMER] [--provider PROVIDER] [--authority AUTHORITY]
-
-options:
-  -h, --help            show this help message and exit
-  --consumer CONSUMER
-  --provider PROVIDER   connect to it afterwards (default: provider; '' to skip)
-  --authority AUTHORITY
-                        must have the eco role (default: authority)
+  -h, --help         show this help message and exit
+  -f, --follow
+  --tail TAIL        lines per container (default: 200, or 'all')
 ```
 
 ## `eunomia restart`
 
-Restart prod nodes on their servers over SSH.
+Restart instances: remote ones over SSH, local ones here.
 
 ```text
-eunomia restart [-h] [-n] node [node ...]
+eunomia restart [-h] [-n] name [name ...]
 
 positional arguments:
-  node           authority, provider, consumer or all
+  name
 
 options:
   -h, --help     show this help message and exit
@@ -384,11 +405,9 @@ options:
 Pinned images; --check looks for newer tags.
 
 ```text
-eunomia images [-h] [--env {standalone,prod}] [--check]
+eunomia images [-h] [--check]
 
 options:
-  -h, --help            show this help message and exit
-  --env {standalone,prod}
-                        standalone (default): every participant on this host. prod: real servers.
-  --check               query the registries
+  -h, --help  show this help message and exit
+  --check     query the registries
 ```

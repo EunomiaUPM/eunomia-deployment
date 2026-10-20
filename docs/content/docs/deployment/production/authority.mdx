@@ -323,7 +323,7 @@ With all environment files complete, start all services:
 docker compose --env-file ../../versions.env -f docker-compose.heimdall.yaml up -d
 ```
 
-or, from the repo root, `./eunomia up authority --env prod`, which also waits for every service to be ready.
+or, from the repo root, `./eunomia prod up authority`, which also waits for every service to be ready. Then register it, from any machine that will manage the data space: `./eunomia remote add <name> --kind authority --url https://your.domain.com`.
 
 <Callout type="info">
 **Fafnir wallet.** The compose file also starts `heimdall-fafnir-setup` and `heimdall-fafnir-wallet`. The wallet runs with

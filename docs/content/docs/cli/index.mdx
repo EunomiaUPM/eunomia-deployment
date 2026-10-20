@@ -1,9 +1,11 @@
 ---
 title: "The eunomia CLI"
-description: "One command-line tool to start, onboard, test and inspect a data space, and to add participants to it."
+description: "A hypervisor for EUNOMIA: it creates, starts, onboards, connects and removes authorities and agents by name, on this machine or on servers."
 ---
 
-`eunomia` drives everything in this repository: the compose stacks, the onboarding calls, the catalog, the end-to-end test and the extra participants. It checks the result of every step and says what to look at when one fails.
+`eunomia` manages **instances**: authorities and agents. You create them by name; it gives each one free ports, its own containers, database, wallet and identity, and keeps a registry of them. Every other command (onboarding, connecting, publishing a catalog, exchanging data) takes instances by name, whether they run here or on a server.
+
+It checks the result of every step and says what to look at when one fails.
 
 ## Running it
 
@@ -22,20 +24,21 @@ Every command takes `--help`; the [reference](/docs/cli/reference) lists them al
 | Group | Commands |
 | --- | --- |
 | Check | `doctor` |
-| The deployment | `up`, `stop`, `down`, `status`, `logs` |
-| Onboarding | `onboard [wallets\|register\|gaia\|connect]` |
-| Data | `catalog populate\|show`, `e2e`, `demo robots\|events\|token` |
-| More participants | `connector add`, `authority add`, `instances`, `start`, `rm`, `register`, `connect`, `gaia` |
-| Production and maintenance | `restart`, `images` |
+| Create instances | `authority add`, `agent add`, `remote add` |
+| Run them | `ls`, `status`, `up`, `stop`, `rm`, `down`, `logs`, `restart` |
+| Trust | `onboard`, `connect` |
+| Data | `catalog populate\|show`, `e2e`, `demo up\|down\|robots\|events\|token` |
+| Production | `prod up\|status\|logs`, `images` |
 
 ## Conventions
 
-- **Participants by name.** Wherever a command takes a participant, `authority`, `provider` and `consumer` are the standalone ones, and any other name is an [extra participant](/docs/deployment/instances).
-- **Idempotent.** `up`, `onboard` and `catalog populate` check first and skip what is done, so running them again is how you resume or update.
-- **Two environments.** `--env standalone` (the default) or `--env prod`.
-- **Settings** come from the shell and from `.env` at the repository root; standalone needs none. See [Configuration](/docs/deployment/configuration).
-- **Output.** Progress goes to stderr; data (`demo robots`, `demo token`, `catalog show`) goes to stdout, so it pipes cleanly.
-- **Exit codes.** `0` on success, `1` on a failed step (with the reason), `130` on Ctrl+C.
+- **Instances by name.** Names are lowercase letters, digits and dashes. `authority add` and `agent add` pick a random one if you give none.
+- **Agents are all alike.** There is no provider or consumer kind of agent. Where a command needs the two roles of an exchange, it asks for them: `e2e --consumer bob --provider alice`.
+- **Nothing is implicit.** `up` starts the instances you created and never creates any; catalogs are loaded into the agent you name. The one convenience: when there is a single authority, `agent add` and `onboard` use it.
+- **Idempotent.** `onboard`, `connect` and `catalog populate` check first and skip what is done, so running them again is how you resume.
+- **Settings** come from the shell and from `.env` at the repository root; nothing is required. See [Configuration](/docs/deployment/configuration).
+- **Output.** Progress goes to stderr; data (`demo robots`, `demo token`, `catalog show`, `ls`) goes to stdout, so it pipes cleanly.
+- **Exit codes.** `0` on success, `1` on a failed step (with the reason), `130` on Ctrl+C. `status` exits `1` when an instance is not healthy.
 
 ## Next
 

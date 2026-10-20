@@ -1,9 +1,9 @@
 ---
 title: "DS-Agent"
-description: "The dataspace agent. One Rust binary that is a provider, a consumer or both, speaking the Dataspace Protocol."
+description: "The dataspace agent. Every participant runs the same Rust binary: it publishes a catalog, negotiates with any other agent and moves the data."
 ---
 
-[DS-Agent](https://github.com/EunomiaUPM/ds-agent) is what a participant runs to take part in the data space. As a **provider** it publishes a catalog, negotiates contracts and serves data through its data plane; as a **consumer** it browses catalogs, negotiates and receives. One configuration can be both.
+[DS-Agent](https://github.com/EunomiaUPM/ds-agent) is what a participant runs to take part in the data space. Every agent is the same: it **publishes a catalog**, **browses other agents' catalogs**, **negotiates contracts** in both directions and **moves data** through its data plane. In each exchange one agent plays the provider (its catalog is used) and the other the consumer (it negotiates for it); the next exchange can swap them.
 
 ## What it does
 
@@ -11,7 +11,7 @@ description: "The dataspace agent. One Rust binary that is a provider, a consume
 - **Catalog**: a DCAT 3 catalog of datasets, data services and distributions, with ODRL policies and policy templates, served over the Dataspace Protocol catalog API.
 - **Contract negotiation**: the full DSP negotiation state machine, from both sides.
 - **Transfers**: the DSP transfer process, and the data plane that runs it: an HTTP proxy for pull, an ingress for push, driven by connector templates and instances.
-- **Admin console**: a web UI at `/admin/login` (in standalone: `eunomia` / `eunomia`) to do all of the above by hand.
+- **Admin console**: a web UI at `/admin/login` (locally: `eunomia` / `eunomia`) to do all of the above by hand.
 
 ## Inside
 
@@ -38,39 +38,39 @@ It is built on [Ymir](/docs/components/ymir) for its identity and protocol types
 The image takes two commands, each with the configuration file:
 
 ```yaml
-provider-setup:
+agent-setup:
   image: "${EUNOMIA_IMAGE}:${EUNOMIA_TAG}"
-  command: ["setup", "-e", "/app/static/config/standalone.provider.yaml"]   # migrations, identity material
-provider:
+  command: ["setup", "-e", "/app/static/config/agent.yaml"]   # migrations, identity material
+agent:
   image: "${EUNOMIA_IMAGE}:${EUNOMIA_TAG}"
-  command: ["start", "-e", "/app/static/config/standalone.provider.yaml"]   # serve
+  command: ["start", "-e", "/app/static/config/agent.yaml"]   # serve
 ```
 
-That is the `<role>-setup` job and the `<role>` service of the compose files. It also reads the env file `static/envs/<role>/core.env.example`, which points it at its vault and the secret files in it.
+That is the agent template in [`deployment/instances/`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/deployment/instances/docker-compose.agent.yaml). It also reads the env file `static/envs/agent/core.env.example`, which points it at its vault and the secret files in it.
 
-| Needs | Standalone |
+| Needs | In a local instance |
 | --- | --- |
-| PostgreSQL | `provider-db` / `consumer-db` |
-| Redis (cache) | `provider-redis` / `consumer-redis` |
-| A Fafnir wallet | `provider-fafnir-wallet` / `consumer-fafnir-wallet` |
-| A vault | `vault/<role>/`, file based |
+| PostgreSQL | `db` |
+| Redis (cache) | `redis` |
+| A Fafnir wallet | `wallet` |
+| A vault | `instances/<name>/vault/`, file based |
 | OpenAPI specs | `static/specs/agent/`, mounted at `/app/static/specs` |
 | Policy templates | `static/policy_templates/` |
 
 ## Configuration
 
-One YAML file, with YAML anchors to share the common blocks. The standalone ones are [`standalone.provider.yaml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/config/provider/standalone/standalone.provider.yaml) and [`standalone.consumer.yaml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/config/consumer/standalone/standalone.consumer.yaml).
+One YAML file, with YAML anchors to share the common blocks. Local agents get theirs from [`agent.template.yaml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/config/agent/standalone/agent.template.yaml), with their name, port and identity filled in, in `instances/<name>/config/agent.yaml`; production uses [`core.agent.yaml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/config/agent/prod/core.agent.yaml).
 
 <TypeTable
   type={{
-    'hosts.http': { type: 'protocol, url, port', description: 'The address the agent advertises to its peers. Standalone: http://host.docker.internal:1200.' },
+    'hosts.http': { type: 'protocol, url, port', description: 'The address the agent advertises to its peers. Locally: http://host.docker.internal:<its port>.' },
     'common.db': { type: 'db_type, url, port', description: 'Its PostgreSQL, by compose service name.' },
     'common.connection': { type: 'is_prod, is_vault_real, has_tls_proxy', description: 'Production switches: real Vault, TLS terminated by a proxy.' },
     'cache': { type: 'Redis', description: 'Its Redis, for the catalog and transfer caches.' },
     'catalog': { type: 'object', description: 'Catalog module: policy templates folder, optional datahub.' },
     'ssi_auth.wallet_config': { type: 'Fafnir | WaltId', description: 'Which wallet, and where it listens.' },
-    'ssi_auth.client_config.class_id': { type: 'Provider | Consumer', description: 'The role the agent presents itself with.' },
-    'ssi_auth.verify_req_config.vcs_requested': { type: 'string[]', description: 'Credentials a peer must present to connect. Standalone provider: gx:labelcredential.' },
+    'ssi_auth.client_config.class_id': { type: 'string', description: 'The name the agent presents itself with to its peers (its nick in their records). Locally: the instance name.' },
+    'ssi_auth.verify_req_config.vcs_requested': { type: 'string[]', description: 'Credentials a peer must present to connect. Local agents: gx:labelcredential.' },
     'ssi_auth.did_config.type': { type: 'Jwk | Web', description: 'DID method. did:web also takes domain, path and port.' },
     'ssi_auth.gaia_config': { type: 'object | null', description: 'The Gaia-X legal person the agent declares in its self-description.' },
     'contracts, transfer, gateway': { type: 'object', description: 'The other modules, each with the addresses of the ones it calls.' },

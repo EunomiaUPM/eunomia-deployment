@@ -1,25 +1,29 @@
 ---
 title: "Architecture"
-description: "The participants of an EUNOMIA data space, what each one does, and how they talk to each other."
+description: "Authorities and agents: what each one does, the roles agents take in an exchange, and how they talk to each other."
 ---
 
-An EUNOMIA data space has three kinds of participant and one rule: **nobody shares data with someone they have not verified, under terms they have not agreed.**
+An EUNOMIA data space has two kinds of participant, **authorities** and **agents**, and one rule: **nobody shares data with someone they have not verified, under terms they have not agreed.**
 
 <Architecture />
 
 ## The participants
 
-**The authority** ([Heimdall](/docs/components/heimdall)) is the data space's registry and trust anchor. It decides who is a participant, and proves it by issuing verifiable credentials: a `DataSpaceParticipant` credential to every member and, in its eco role, the Gaia-X legal and label credentials. It verifies presentations and guards its own endpoints with GNAP.
+**An authority** ([Heimdall](/docs/components/heimdall)) is the data space's registry and trust anchor. It decides who is a participant, and proves it by issuing verifiable credentials: a `DataSpaceParticipant` credential to every member and, in its eco role, the Gaia-X legal and label credentials. It verifies presentations and guards its own endpoints with GNAP. A data space has at least one; an agent can belong to several.
 
-**The provider** ([DS-Agent](/docs/components/ds-agent)) publishes a **catalog** (DCAT 3) of datasets. Each dataset has **policies** (ODRL) that say on what terms it can be used, and **distributions** with **connectors** that say how to reach the data behind it: an HTTP API to pull, an event stream to push. The provider decides which consumers it talks to, by the credentials it asks them for.
+**An agent** ([DS-Agent](/docs/components/ds-agent)) is what an organisation runs to take part. Every agent is the same piece of software with the same abilities:
 
-**The consumer** (DS-Agent too) browses catalogs, **negotiates contracts** with providers and starts **transfers** under the agreements those negotiations produce.
+- it can **publish a catalog** (DCAT 3) of datasets, each with **policies** (ODRL) that say on what terms it can be used and **distributions** with **connectors** that say how to reach the data behind it: an HTTP API to pull, an event stream to push;
+- it can **browse other agents' catalogs**, **negotiate contracts** with them and start **transfers** under the agreements those negotiations produce;
+- it decides which peers it talks to, by the credentials it asks them for.
 
-**Every one of them** runs a **wallet** ([Fafnir](/docs/components/fafnir)) as a sidecar, holding its keys, its DID and its credentials, and signing on its behalf. All of them share one core library, [Ymir](/docs/components/ymir).
+**Every participant** runs a **wallet** ([Fafnir](/docs/components/fafnir)) as a sidecar, holding its keys, its DID and its credentials, and signing on its behalf. All of them share one core library, [Ymir](/docs/components/ymir).
 
-**The data backend** is the system that actually holds the data: a database, an API, a stream. The provider agent sits in front of it, so the consumer never talks to it and never sees its credentials. Here it is the [demo factory](/docs/components/demo-factory).
+**A data backend** is the system that actually holds the data: a database, an API, a stream. The agent that shares it sits in front of it, so other agents never talk to it and never see its credentials. Here it is the [demo factory](/docs/components/demo-factory).
 
-An agent can be provider and consumer at the same time. The standalone deployment runs one of each to keep the roles visible.
+### Provider and consumer are roles
+
+"Provider" and "consumer" are not kinds of agent: they are the roles two agents take **in one exchange**, the one whose catalog is used and the one that negotiates for it. The same agent provides in one exchange and consumes in the next, often at the same time. In this documentation and in the CLI (`eunomia e2e --consumer bob --provider alice`), the words always refer to that role.
 
 ## The life of an exchange
 
@@ -28,7 +32,7 @@ An agent can be provider and consumer at the same time. The standalone deploymen
 
 ### Onboarding
 
-The participants link their wallets, get their credentials from the authority, and the consumer connects to the provider: it presents its credentials and receives a GNAP access token. [Onboarding](/docs/architecture/onboarding) has every call.
+Each agent links its wallet and gets its credentials from an authority. Then the agent that wants data connects to the one that has it: it presents its credentials and receives a GNAP access token. [Onboarding](/docs/architecture/onboarding) has every call.
 
 </Step>
 <Step>
@@ -69,12 +73,11 @@ Under that agreement the consumer starts a transfer, pull or push. The provider'
 | --- | --- |
 | `eunomia`, `eunomia.cmd`, `cli/` | The [CLI](/docs/cli) |
 | `versions.env` | The component image versions, in one place |
-| `deployment/standalone/` | Compose files for one machine |
-| `deployment/prod/` | Compose files for real servers |
-| `deployment/instances/` | Templates for extra connectors and authorities |
+| `deployment/instances/` | Compose templates for local agents and authorities |
+| `deployment/prod/` | Compose files for one agent or authority per server |
 | `services/demo-factory/` | The demo data backend |
-| `static/config/` | Agent, authority and wallet configuration |
-| `static/catalog/` | The catalog the provider is populated with |
+| `static/config/` | Agent, authority and wallet configuration templates |
+| `static/catalog/` | The demo catalog an agent can publish |
 | `static/specs/` | OpenAPI specs of the agent and the authority |
 | `vault/` | Example keys, certificates and secrets |
 | `docs/` | This site |

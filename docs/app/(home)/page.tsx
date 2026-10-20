@@ -12,14 +12,14 @@ export const metadata: Metadata = {
 };
 
 const heroScript: TerminalLine[] = [
-  { kind: 'cmd', text: './eunomia up' },
-  { kind: 'ok', text: 'Authority is ready' },
-  { kind: 'ok', text: 'Provider is ready' },
-  { kind: 'ok', text: 'Consumer is ready' },
-  { kind: 'ok', text: 'consumer holds gx_LabelCredential_jwt_vc_json' },
-  { kind: 'ok', text: 'consumer is connected to provider' },
-  { kind: 'ok', text: 'Catalog populated' },
-  { kind: 'cmd', text: './eunomia e2e' },
+  { kind: 'cmd', text: './eunomia authority add authority' },
+  { kind: 'ok', text: 'authority is ready' },
+  { kind: 'cmd', text: './eunomia agent add alice && ./eunomia agent add bob' },
+  { kind: 'ok', text: 'alice holds gx_LabelCredential_jwt_vc_json' },
+  { kind: 'ok', text: 'bob holds gx_LabelCredential_jwt_vc_json' },
+  { kind: 'cmd', text: './eunomia catalog populate alice' },
+  { kind: 'cmd', text: './eunomia e2e --consumer bob --provider alice' },
+  { kind: 'ok', text: 'bob is connected to alice' },
   { kind: 'dim', text: '  8/8 FINALIZED  agreement=urn:agreement:3b72dec8…' },
   { kind: 'ok', text: 'Dataplane proxy -> HTTP 200, 5 robot(s)' },
   { kind: 'ok', text: 'event received: robot_temperature = 47.30' },
@@ -37,7 +37,7 @@ const goals = [
   },
   {
     title: 'Joining data efficiently',
-    body: 'Pull on demand or stream as events, through the provider’s own data plane. The backend’s credentials never leave the provider.',
+    body: 'Pull on demand or stream as events, through the data plane of the agent that owns it. The backend’s credentials never leave that agent.',
   },
 ];
 
@@ -45,17 +45,17 @@ const steps = [
   {
     n: '01',
     title: 'Onboard',
-    body: 'The authority issues each participant its credentials over OID4VCI, Gaia-X legal and label credentials included. Wallets keep the keys.',
+    body: 'The authority issues each agent its credentials over OID4VCI, Gaia-X legal and label credentials included. Wallets keep the keys.',
   },
   {
     n: '02',
     title: 'Agree',
-    body: 'Consumer and provider negotiate over the Dataspace Protocol: eight states, from request to a finalized agreement on an ODRL policy.',
+    body: 'One agent asks for another’s catalog and negotiates over the Dataspace Protocol: eight states, from request to a finalized agreement on an ODRL policy.',
   },
   {
     n: '03',
     title: 'Exchange',
-    body: 'Under that agreement the data flows: pulled through the provider’s proxy, or pushed as events to the consumer’s endpoint.',
+    body: 'Under that agreement the data flows: pulled through the publishing agent’s proxy, or pushed as events to the other’s endpoint. Next time, they swap.',
   },
 ];
 
@@ -73,7 +73,7 @@ const principles = [
   {
     letter: 'C',
     title: 'Sovereign by default',
-    body: 'Your keys stay in your wallet, your backend credentials in your provider, your terms in your policies.',
+    body: 'Your keys stay in your wallet, your backend credentials in your agent, your terms in your policies.',
   },
   {
     letter: 'D',
@@ -83,7 +83,7 @@ const principles = [
 ];
 
 const stats = [
-  { value: '3', label: 'commands from git clone to data flowing' },
+  { value: '1', label: 'kind of agent: every one publishes and consumes' },
   { value: '8', label: 'Dataspace Protocol states to an agreement' },
   { value: '4', label: 'Rust components, each with its own database' },
   { value: '100%', label: 'open source, under GPL-3.0' },
@@ -92,7 +92,7 @@ const stats = [
 const faq = [
   {
     q: 'What is a data space?',
-    a: 'A network where organisations share data under rules they agree on: who may use it, for what and until when. Participants prove their identity with verifiable credentials, every exchange starts with a contract, and the data travels through the provider’s own connector.',
+    a: 'A network where organisations share data under rules they agree on: who may use it, for what and until when. Participants prove their identity with verifiable credentials, every exchange starts with a contract, and the data travels through the agent of whoever owns it.',
   },
   {
     q: 'How does EUNOMIA relate to Gaia-X and IDSA?',
@@ -104,7 +104,7 @@ const faq = [
   },
   {
     q: 'Is it ready for production?',
-    a: 'The single-machine deployment runs end to end in CI. The production deployment, one participant per server with HashiCorp Vault, TLS and did:web, is documented but not yet validated against a real Vault: treat it as the way there, not as a finished recipe.',
+    a: 'A local data space, authority and agents included, runs end to end in CI in both directions. The production deployment, one participant per server with HashiCorp Vault, TLS and did:web, is documented but not yet validated against a real Vault: treat it as the way there, not as a finished recipe.',
   },
 ];
 
@@ -133,8 +133,8 @@ export default function HomePage() {
             </p>
             <Heading as="h1" first="Data spaces in minutes." second="Not quarters." />
             <Lead>
-              EUNOMIA is an open-source framework for sovereign, interoperable data sharing. An authority, a provider and a
-              consumer, with verifiable credentials and ODRL contracts over the Dataspace Protocol. Three commands from{' '}
+              EUNOMIA is an open-source framework for sovereign, interoperable data sharing. An authority and as many agents
+              as you need, with verifiable credentials and ODRL contracts over the Dataspace Protocol. Minutes from{' '}
               <code className="font-mono text-fd-foreground">git clone</code> to data flowing.
             </Lead>
             <div className="mt-10 flex flex-wrap gap-3">
@@ -170,7 +170,11 @@ export default function HomePage() {
 
       {/* 02 How it works */}
       <Section number="02" label="How it works">
-        <Heading first="Three participants." second="One handshake at a time." />
+        <Heading first="Every agent publishes." second="Every agent consumes." />
+        <Lead>
+          There is no provider kind or consumer kind of node: only agents, and the roles they take in each exchange. The
+          authority decides who belongs.
+        </Lead>
         <div className="mt-14 grid gap-5 md:grid-cols-3">
           {steps.map((s) => (
             <div key={s.n} className="relative rounded-2xl border border-fd-border bg-fd-card/60 p-7">
@@ -284,14 +288,16 @@ export default function HomePage() {
       <div className="relative">
         <Glow className="bottom-0 left-1/2 h-[380px] w-[760px] -translate-x-1/2" />
         <Section className="text-center">
-          <Heading first="Start building." second="Your data space is three commands away." className="mx-auto max-w-3xl" />
+          <Heading first="Start building." second="Your data space is minutes away." className="mx-auto max-w-3xl" />
           <div className="mx-auto mt-10 max-w-xl text-left">
             <Terminal
               title="get started"
               lines={[
-                { kind: 'cmd', text: 'git clone https://github.com/EunomiaUPM/eunomia-deployment.git' },
-                { kind: 'cmd', text: 'cd eunomia-deployment && ./eunomia up' },
-                { kind: 'cmd', text: './eunomia e2e' },
+                { kind: 'cmd', text: 'git clone https://github.com/EunomiaUPM/eunomia-deployment.git && cd eunomia-deployment' },
+                { kind: 'cmd', text: './eunomia authority add authority' },
+                { kind: 'cmd', text: './eunomia agent add alice && ./eunomia agent add bob' },
+                { kind: 'cmd', text: './eunomia demo up && ./eunomia catalog populate alice' },
+                { kind: 'cmd', text: './eunomia e2e --consumer bob --provider alice' },
               ]}
             />
           </div>

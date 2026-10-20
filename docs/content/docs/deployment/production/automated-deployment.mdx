@@ -3,7 +3,7 @@ title: "Automated deployment"
 description: "The GitHub Actions workflow that deploys the three prod servers over SSH."
 ---
 
-[`.github/workflows/deploy.yml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/.github/workflows/deploy.yml) deploys the authority, the provider and the consumer to their servers over SSH. For now it runs only when started by hand.
+[`.github/workflows/deploy.yml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/.github/workflows/deploy.yml) deploys the authority and every agent to their servers over SSH. For now it runs only when started by hand.
 
 ## How it works
 
@@ -11,82 +11,69 @@ description: "The GitHub Actions workflow that deploys the three prod servers ov
           Manual run (Actions → Deploy → Run workflow)
                               │
                               ▼
-                       deploy-heimdall          ← server A, finishes first
-                    (Heimdall + Keycloak)
+                       deploy-authority          ← its server, finishes first
                               │
-                 ┌────────────┴────────────┐
-                 ▼                         ▼
-          deploy-provider           deploy-consumer
-            (server B)                (server C)
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+       deploy-agent     deploy-agent     deploy-agent   ← one job per agent,
+          (ACME)          (GLOBEX)          (…)           in parallel
 ```
 
-**The authority goes first.** The provider and the consumer only start once Heimdall has deployed, which is the order the dataspace needs; then they deploy in parallel.
+**The authority goes first.** The agents only start once it has deployed; then they all deploy in parallel. Which agents there are comes from the repository variable **`AGENTS`**, a JSON array of names: `["ACME", "GLOBEX"]`.
 
 Each job connects to its server over SSH and runs, from the repo checkout:
 
 1. `git reset --hard origin/main`: syncs the checkout.
 2. `docker login quay.io`: authenticates to pull the images.
-3. `docker compose --env-file versions.env pull`: downloads the images pinned in [`versions.env`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/versions.env). A deploy only changes images when a commit bumps a pin; `./eunomia images --env prod --check` shows what is newer.
+3. `docker compose --env-file versions.env pull`: downloads the images pinned in [`versions.env`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/versions.env). A deploy only changes images when a commit bumps a pin; `./eunomia images --check` shows what is newer.
 4. `docker compose --env-file versions.env up -d --wait --remove-orphans`: recreates only the containers whose image or config changed, and fails the job if a service does not become healthy. A sealed Vault after a server restart shows up here: unseal it and run the job again.
 
 It does not run on push to `main`: the prod configs have not been run against a real Vault yet. Once they have, add `push: branches: [main]` under `on:` in `deploy.yml` (the file has the snippet in a comment).
-
-Only prod is deployed. The standalone deployment runs every participant on one host: run `./eunomia up` there.
 
 ## Prerequisites
 
 On each server:
 
 - Docker Engine 24 or later with Docker Compose 2.20 or later.
-- The repository cloned at a fixed path, for example `/opt/eunomia`.
+- The repository cloned at the same path on every server, for example `/opt/eunomia`.
 - An SSH user allowed to run `docker` and `git`.
 - The Vault certificates and env files in place, as described in [Agent in production](/docs/deployment/production/agent) and [Authority in production](/docs/deployment/production/authority). The workflow does not manage them: set them up once by hand before the first deploy.
 
 In the GitHub repository:
 
 - A `prod` environment under **Settings → Environments**, holding the secrets below.
+- The variable `AGENTS` under **Settings → Variables**.
 
 ## GitHub secrets
 
 | Secret | Description |
 | --- | --- |
-| `HEIMDALL_HOST` | IP address or hostname of server A |
-| `HEIMDALL_USER` | SSH user on server A |
-| `HEIMDALL_SSH_KEY` | Private SSH key for server A (full contents) |
-| `HEIMDALL_SSH_PORT` | SSH port of server A; omit for 22 |
-| `PROVIDER_HOST` | IP address or hostname of server B |
-| `PROVIDER_USER` | SSH user on server B |
-| `PROVIDER_SSH_KEY` | Private SSH key for server B (full contents) |
-| `PROVIDER_SSH_PORT` | SSH port of server B; omit for 22 |
-| `CONSUMER_HOST` | IP address or hostname of server C |
-| `CONSUMER_USER` | SSH user on server C |
-| `CONSUMER_SSH_KEY` | Private SSH key for server C (full contents) |
-| `CONSUMER_SSH_PORT` | SSH port of server C; omit for 22 |
-| `DEPLOY_PATH` | Absolute path of the checkout on each server, for example `/opt/eunomia` |
-| `QUAY_USER` | quay.io user |
-| `QUAY_PASSWORD` | quay.io password or robot token |
+| `AUTHORITY_HOST`, `AUTHORITY_USER`, `AUTHORITY_SSH_KEY` | SSH access to the authority's server |
+| `AUTHORITY_SSH_PORT` | its SSH port; omit for 22 |
+| `<AGENT>_HOST`, `<AGENT>_USER`, `<AGENT>_SSH_KEY` | the same for each agent in `AGENTS`, e.g. `ACME_HOST` |
+| `<AGENT>_SSH_PORT` | its SSH port; omit for 22 |
+| `DEPLOY_PATH` | absolute path of the checkout on every server, e.g. `/opt/eunomia` |
+| `QUAY_USER`, `QUAY_PASSWORD` | quay.io user and password or robot token |
 
 ## Setting up SSH access
 
 Once per server, before the first deploy.
 
-1. Generate a dedicated key pair on your machine:
+1. Generate a dedicated key pair on your machine, one per server:
 
    ```bash
-   ssh-keygen -t ed25519 -C "github-actions-heimdall" -f ~/.ssh/ga_heimdall
-   ssh-keygen -t ed25519 -C "github-actions-provider" -f ~/.ssh/ga_provider
-   ssh-keygen -t ed25519 -C "github-actions-consumer" -f ~/.ssh/ga_consumer
+   ssh-keygen -t ed25519 -C "github-actions-authority" -f ~/.ssh/ga_authority
+   ssh-keygen -t ed25519 -C "github-actions-acme" -f ~/.ssh/ga_acme
    ```
 
 2. Install each public key on its server:
 
    ```bash
-   ssh-copy-id -i ~/.ssh/ga_heimdall.pub &lt;user>@&lt;heimdall-host>
-   ssh-copy-id -i ~/.ssh/ga_provider.pub &lt;user>@&lt;provider-host>
-   ssh-copy-id -i ~/.ssh/ga_consumer.pub &lt;user>@&lt;consumer-host>
+   ssh-copy-id -i ~/.ssh/ga_authority.pub <user>@<authority-host>
+   ssh-copy-id -i ~/.ssh/ga_acme.pub <user>@<acme-host>
    ```
 
-3. Paste each private key into its secret (`HEIMDALL_SSH_KEY`, `PROVIDER_SSH_KEY`, `CONSUMER_SSH_KEY`). It starts with `-----BEGIN OPENSSH PRIVATE KEY-----`.
+3. Paste each private key into its secret (`AUTHORITY_SSH_KEY`, `ACME_SSH_KEY`…). It starts with `-----BEGIN OPENSSH PRIVATE KEY-----`.
 
 ## First-time server setup
 
@@ -96,17 +83,7 @@ cd /opt/eunomia
 # Place the Vault certificates and env files as the prod guides describe
 ```
 
-After that, every run of the workflow updates the three servers.
-
-## Deployment order
-
-From scratch, order matters:
-
-1. **Server A**: the authority. Agents cannot register until it runs.
-2. **Server B**: the provider.
-3. **Server C**: the consumer.
-4. **Onboarding and catalog**, from any machine that reaches the three public URLs (set in `.env`):
-   `./eunomia onboard --env prod`, then `./eunomia catalog populate --env prod`. Both skip what is already done, so they are safe to re-run after every deploy.
+After that, every run of the workflow updates the servers. Register them once from the machine you manage the data space from: `./eunomia remote add <name> --kind agent --url https://<its domain>`; then onboarding and catalogs work by name (see [Production](/docs/deployment/production)).
 
 ## Manual fallback
 
@@ -115,9 +92,7 @@ Without GitHub Actions, on each server:
 ```bash
 cd /opt/eunomia
 git pull origin main
-# server A: docker-compose.heimdall.yaml, B: docker-compose.provider.yaml, C: docker-compose.consumer.yaml
-docker compose --env-file versions.env -f deployment/prod/docker-compose.heimdall.yaml pull
-docker compose --env-file versions.env -f deployment/prod/docker-compose.heimdall.yaml up -d --wait --remove-orphans
+./eunomia prod up agent --pull     # or: authority
 ```
 
-Or restart the agents in place from your machine with `./eunomia restart <node>`, see [Production](/docs/deployment/production).
+Or restart them from your machine with `./eunomia restart <name>`, see [Production](/docs/deployment/production).

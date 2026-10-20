@@ -41,7 +41,7 @@ export const components = [
     docs: '/docs/components/ds-agent',
     role: 'Dataspace agent',
     summary:
-      'Provider and consumer in one Rust binary: DCAT 3 catalog, ODRL contract negotiation and transfers over the Dataspace Protocol, plus the data plane that moves the bytes.',
+      'What every participant runs, all alike: a DCAT 3 catalog to publish, ODRL contract negotiation and transfers with any other agent over the Dataspace Protocol, and the data plane that moves the bytes.',
   },
   {
     name: 'Heimdall',

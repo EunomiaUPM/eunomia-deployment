@@ -1,24 +1,23 @@
 ---
 title: "Deployment"
-description: "Two ways to run EUNOMIA: everything on one machine, or one participant per server."
+description: "Run authorities and agents on one machine, or one per server, and manage them all by name."
 ---
 
-| | Standalone | Production |
+| | Local instances | Production |
 | --- | --- | --- |
-| Where | one machine | one server per participant |
+| Where | this machine, as many as you need | one server per authority or agent |
 | For | development, demos, workshops, CI | real data spaces |
-| Identities | `did:jwk` | `did:web` on each domain |
-| Secrets | file vault in `vault/` | HashiCorp Vault with TLS |
+| Created with | `eunomia authority add`, `eunomia agent add` | `eunomia prod up agent\|authority` on each server |
+| Managed with | the same commands, by name | `eunomia remote add`, then the same commands |
+| Identities | `did:jwk`, generated per instance | `did:web` on each domain |
+| Secrets | file vault in `instances/<name>/vault/` | HashiCorp Vault with TLS |
 | TLS | none | your certificates |
-| Authority console | open | behind Keycloak and oauth2-proxy |
-| Start with | `./eunomia up` | the [production guides](/docs/deployment/production) |
-| Compose files | `deployment/standalone/` | `deployment/prod/` |
+| Compose files | templates in `deployment/instances/` | `deployment/prod/` |
 
-Both use the same images, pinned in `versions.env`, and the same CLI: `--env prod` switches it to production.
+Both use the same images, pinned in `versions.env`, and the same CLI. Local and remote instances can live in one registry: a local agent can negotiate with one on a server.
 
 <Cards>
-  <Card title="Standalone" href="/docs/deployment/standalone" description="Every participant and the demo factory on one machine." />
-  <Card title="Extra participants" href="/docs/deployment/instances" description="More connectors and authorities next to it, on free ports." />
-  <Card title="Configuration" href="/docs/deployment/configuration" description="versions.env, .env and the YAML files: what each controls." />
+  <Card title="Local data space" href="/docs/deployment/local" description="Authorities and agents on this machine: create, start, connect, remove." />
+  <Card title="Configuration" href="/docs/deployment/configuration" description="versions.env, .env and the templates: what each controls." />
   <Card title="Production" href="/docs/deployment/production" description="Domains, TLS, Vault and did:web, one server each." />
 </Cards>

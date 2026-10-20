@@ -3,86 +3,88 @@ title: "Workflows"
 description: "The eunomia commands in the order you use them, task by task."
 ---
 
-## First run
+## A first data space
 
 ```bash
-./eunomia doctor          # Docker, Compose v2, free ports, versions.env
-./eunomia up              # start, onboard, populate the catalog
-./eunomia e2e             # prove it end to end
+./eunomia doctor                       # Docker, Compose v2, free ports, versions.env
+./eunomia authority add authority
+./eunomia agent add alice              # onboarded with the only authority
+./eunomia agent add bob
+./eunomia demo up
+./eunomia catalog populate alice
+./eunomia e2e --consumer bob --provider alice
 ```
 
-`doctor --images` also checks that every pinned image can be pulled, which is worth doing before an event or on a slow network.
+`doctor --images` also checks that every pinned image can be pulled, which is worth doing before a workshop or on a slow network.
 
 ## Day to day
 
 ```bash
-./eunomia status          # every node: containers, health, readiness
-./eunomia logs provider -f
-./eunomia stop            # keep data and identities
-./eunomia up              # start again; skips what is already done
+./eunomia ls                  # instances, URLs, state
+./eunomia status              # the same, plus the demo; non-zero exit if something is unhealthy
+./eunomia status alice        # one instance in detail
+./eunomia logs alice -f       # its logs ('demo' for the factory)
+./eunomia stop                # everything, keeping data
+./eunomia up                  # everything again
+./eunomia up alice            # or one
 ```
 
-After `git pull`, `./eunomia up` applies the changes: new images, configuration, catalog. `--build` rebuilds the demo factory.
+After `git pull`, `./eunomia up` applies new image versions to the existing instances. `demo up --build` rebuilds the demo factory.
+
+## More agents, more authorities
+
+```bash
+./eunomia agent add carol                         # another agent
+./eunomia agent add dave --no-onboard             # created, not onboarded
+./eunomia onboard dave                            # onboard it later
+
+./eunomia authority add club --role dataspace     # a second authority, membership only
+./eunomia agent add erin --authority club         # onboarded with that one
+./eunomia onboard alice --authority club          # an agent can belong to several
+```
+
+## Exchanging data
+
+Any agent can publish and any agent can consume; the roles are per exchange.
+
+```bash
+./eunomia catalog populate alice                  # alice publishes the factory
+./eunomia catalog populate bob                    # so does bob
+./eunomia catalog show alice
+
+./eunomia e2e --consumer bob --provider alice     # bob negotiates with alice
+./eunomia e2e --consumer alice --provider bob     # and the other way round
+./eunomia e2e --consumer carol --provider alice --keep-open   # leave a pull transfer open
+./eunomia e2e --consumer bob --provider alice -v  # every request and response
+
+./eunomia demo robots --consumer bob --provider alice | jq '.[0]'
+./eunomia demo events --consumer bob --provider alice --count 10
+TOKEN=$(./eunomia demo token)                     # call the factory directly
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:1210/robots/
+```
+
+`e2e` and `demo` connect the two agents first if they are not connected. To connect by hand: `./eunomia connect bob alice` (`--both` for both ways).
 
 ## Start over
 
 ```bash
-./eunomia down --dry-run  # what it would remove
-./eunomia down --yes      # containers, volumes and generated identities
-./eunomia up
+./eunomia rm carol                # one instance: containers, volumes, configuration, identity
+./eunomia down --dry-run          # what down would remove
+./eunomia down --yes              # every local instance and the demo factory
 ```
-
-`down --keep-identities` keeps the generated keys, so the participants keep their DIDs.
-
-## Use the data
-
-```bash
-./eunomia demo robots | jq '.[0]'     # pull through the data space
-./eunomia demo events --count 10      # watch the pushed events
-TOKEN=$(./eunomia demo token)         # call the factory directly, as the provider does
-curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:1210/robots/
-./eunomia catalog show                # what the provider offers
-./eunomia e2e --keep-open             # leave a pull transfer open and print its URL
-./eunomia e2e -v                      # every request and response
-```
-
-## Repair a step
-
-```bash
-./eunomia onboard wallets
-./eunomia onboard register provider
-./eunomia onboard gaia
-./eunomia onboard connect
-./eunomia catalog populate --force
-```
-
-## More participants
-
-```bash
-./eunomia connector add seller --role provider --onboard
-./eunomia connector add buyer --onboard
-./eunomia gaia --consumer buyer --provider seller
-./eunomia catalog populate --provider seller
-./eunomia e2e --consumer buyer --provider seller
-
-./eunomia authority add my-auth
-./eunomia register buyer --authority my-auth
-
-./eunomia instances
-./eunomia rm seller --yes
-```
-
-See [Extra participants](/docs/deployment/instances).
 
 ## Production
 
 ```bash
-./eunomia up authority --env prod     # on each server, its own node
-./eunomia onboard --env prod          # from anywhere that reaches the three URLs
-./eunomia catalog populate --env prod
-./eunomia e2e --env prod
-./eunomia restart provider --dry-run  # restart over SSH
-./eunomia images --env prod --check   # newer tags in the registries
+./eunomia prod up authority       # on the authority's server
+./eunomia prod up agent           # on each agent's server
+
+# from the machine you manage the data space from
+./eunomia remote add authority --kind authority --url https://authority.example.org
+./eunomia remote add acme --kind agent --url https://acme.example.org --ssh deploy@acme.example.org --path /opt/eunomia/deployment/prod
+./eunomia onboard acme --authority authority
+./eunomia restart acme --dry-run  # restart over SSH
+./eunomia images --check          # newer tags in the registries
 ```
 
 See [Production](/docs/deployment/production).

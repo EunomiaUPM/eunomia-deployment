@@ -1,0 +1,110 @@
+---
+title: "Local data space"
+description: "Authorities and agents on one machine, as many as you need: eunomia creates, starts, connects and removes them."
+---
+
+On one machine, `eunomia` works as a **hypervisor of instances**. You create the authorities and agents you need, by name; each one gets free ports, its own containers, database, wallet and identity; and every other command (onboarding, catalogs, exchanges) refers to them by name.
+
+There is no fixed topology. Two agents and an authority is the smallest useful data space; a workshop can run one agent per team, a second authority with its own admission rules, or a dozen agents trading with each other.
+
+## A data space from nothing
+
+```bash
+./eunomia authority add authority      # an authority, with the eco role (Gaia-X)
+./eunomia agent add alice              # an agent, onboarded with that authority
+./eunomia agent add bob                # another one
+./eunomia demo up                      # the demo factory, a backend any agent can share
+./eunomia catalog populate alice       # alice publishes the factory
+./eunomia e2e --consumer bob --provider alice
+```
+
+`agent add` onboards the new agent with the authority when there is only one (or the one named with `--authority`): wallet, `DataSpaceParticipant` credential, Gaia-X legal and label credentials. `--no-onboard` only creates it; `eunomia onboard <agent>` does the rest later.
+
+Every agent is the same. alice can publish and bob consume, and the other way round:
+
+```bash
+./eunomia catalog populate bob
+./eunomia e2e --consumer alice --provider bob
+```
+
+## Instances
+
+```bash
+./eunomia ls                      # every instance, where it runs, its URL and state
+./eunomia status                  # the same, plus the demo factory; non-zero exit if one is not healthy
+./eunomia status alice            # one instance: its containers, console, API, Postgres
+./eunomia logs alice -f           # its logs ('demo' for the factory, or any container name)
+./eunomia stop                    # stop every instance and the demo, keeping data
+./eunomia up                      # start every registered instance again
+./eunomia up bob                  # or only some
+./eunomia rm bob                  # remove one: containers, volumes, configuration, identity
+./eunomia down                    # remove every local instance and the demo factory
+```
+
+`up` never creates instances: it starts the ones already registered. `down` and `rm` ask first (`--yes` skips the question); `down --dry-run` shows what would go.
+
+### Names
+
+Lowercase letters, digits and dashes, starting with a letter. Without a name, `agent add` and `authority add` pick one (`agent-x7k2`). The name is how every command refers to the instance, how the agent presents itself to its peers (its GNAP `class_id`), and the prefix of its containers: `eunomia-alice`, `eunomia-alice-db`, `eunomia-alice-wallet`…
+
+### Ports
+
+Each instance takes the first free HTTP port in `1600-1999` and Postgres port in `15400-15999` (`EUNOMIA_HTTP_PORTS`, `EUNOMIA_DB_PORTS`). `eunomia ls` shows them. The instance keeps its ports for life: they are part of the address it advertises to its peers.
+
+| What | Where |
+| --- | --- |
+| An agent's console | `http://127.0.0.1:<port>/admin/login`, `eunomia` / `eunomia` |
+| An authority's console | `http://127.0.0.1:<port>/admin/home` |
+| From another container | `http://host.docker.internal:<port>` |
+| An instance's Postgres | `127.0.0.1:<db port>`, user, password and database `eunomia_agent` or `standalone_heimdall` |
+| Demo factory | `http://127.0.0.1:1210/docs` (pull), `:1220/docs` (push), `:1230` (Keycloak, `admin` / `admin`) |
+
+### Authorities
+
+```bash
+./eunomia authority add authority                    # eco role: data space membership and Gaia-X
+./eunomia authority add club --role dataspace        # membership only
+./eunomia agent add carol --authority club           # onboard with that one
+./eunomia onboard alice --authority club             # alice can belong to both
+```
+
+Agents only accept peers holding the Gaia-X label credential, which only an eco authority issues. See [Identity and trust](/docs/architecture/trust).
+
+### Connecting agents
+
+`eunomia e2e` and `eunomia demo` connect the two agents when they are not connected yet. To do it by hand:
+
+```bash
+./eunomia connect bob alice          # bob gets a token to talk to alice
+./eunomia connect bob alice --both   # and alice one for bob
+```
+
+A connection works one way: the agent that connects can browse the other's catalog and negotiate with it.
+
+## What is in instances/name
+
+| File | What |
+| --- | --- |
+| `instance.env` | name, kind, ports (or URL, for a remote one): the registry the CLI reads |
+| `config/agent.yaml` or `config/authority.yaml` | its configuration, rendered from the template in `static/config/` |
+| `config/fafnir.yaml` | its wallet's configuration |
+| `vault/` | its own key pair and certificate (with its own VAT number), and what the setup jobs derive from them |
+
+The compose files are the templates in [`deployment/instances/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/deployment/instances): one for agents, one for authorities. Inside an instance's compose project the services are `db`, `redis`, `wallet` and `agent` (or `heimdall`); one-shot `*-setup` jobs prepare the database and the keys and then exit, so `exited` is their normal state.
+
+## State
+
+- **Databases**: catalog, agreements, transfers, credentials and wallet state, in Docker volumes. `stop` keeps them; `rm` and `down` remove them.
+- **Identity**: the keys under `instances/<name>/vault/`. They live as long as the instance: removing it removes its identity, and a new instance with the same name gets new keys.
+
+## Remote instances
+
+Instances on other servers join the same registry by URL, and every command that takes an instance name works with them:
+
+```bash
+./eunomia remote add far --kind agent --url https://agent.example.org
+./eunomia connect alice far
+./eunomia e2e --consumer alice --provider far
+```
+
+See [Production](/docs/deployment/production).

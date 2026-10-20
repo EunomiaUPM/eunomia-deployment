@@ -29,26 +29,26 @@ What an authority issues depends on its role, set in its configuration (`role:`)
 
 The clearing-house and clearing-house-proxy roles exist in the code but are not implemented yet.
 
-The standalone authority runs as **EcoAuthority** ([`standalone.eco_authority.yaml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/config/heimdall/standalone/standalone.eco_authority.yaml)), so one container plays every role. That is convenient for development and demos; in a real ecosystem the legal, data space and clearing-house roles belong to different organisations. [`standalone.authority.yaml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/config/heimdall/standalone/standalone.authority.yaml) is the same with the data space role only, and `eunomia authority add --role dataspace` starts one.
+`eunomia authority add` creates an **EcoAuthority** by default ([template](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/config/heimdall/standalone/eco_authority.template.yaml)), so one container plays every role. That is convenient for development and demos; in a real ecosystem the legal, data space and clearing-house roles belong to different organisations. `--role dataspace` creates one with the data space role only ([template](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/config/heimdall/standalone/dataspace_authority.template.yaml)).
 
 ## Running it
 
 ```yaml
 heimdall-setup:
   image: "${HEIMDALL_IMAGE}:${HEIMDALL_TAG}"
-  command: ["setup", "--env-file", "/app/static/config/standalone.eco_authority.yaml"]
+  command: ["setup", "--env-file", "/app/static/config/authority.yaml"]
 heimdall:
   image: "${HEIMDALL_IMAGE}:${HEIMDALL_TAG}"
-  command: ["start", "--env-file", "/app/static/config/standalone.eco_authority.yaml"]
+  command: ["start", "--env-file", "/app/static/config/authority.yaml"]
 ```
 
-It needs PostgreSQL (`heimdall-db`), its Fafnir wallet (`heimdall-fafnir-wallet`), a vault (`vault/heimdall/` in standalone), its OpenAPI spec (`static/specs/heimdall/`) and the env file `static/envs/heimdall/heimdall.env.example`. In production it also runs behind Keycloak and oauth2-proxy for the admin console: see [Authority in production](/docs/deployment/production/authority).
+That is the authority template in [`deployment/instances/`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/deployment/instances/docker-compose.authority.yaml). It needs PostgreSQL (`db`), its Fafnir wallet (`wallet`), a vault (`instances/<name>/vault/` locally), its OpenAPI spec (`static/specs/heimdall/`) and the env file `static/envs/heimdall/heimdall.env.example`. In production it also runs behind Keycloak and oauth2-proxy for the admin console: see [Authority in production](/docs/deployment/production/authority).
 
 ## Configuration
 
 <TypeTable
   type={{
-    'hosts_config.http': { type: 'protocol, url, port', description: 'The address it advertises. Standalone: http://host.docker.internal:1500.' },
+    'hosts_config.http': { type: 'protocol, url, port', description: 'The address it advertises. Locally: http://host.docker.internal:<its port>.' },
     'connection_config': { type: 'is_prod, is_vault_real, has_tls_proxy', description: 'Production switches.' },
     'db_config': { type: 'db_type, url, port', description: 'Its PostgreSQL.' },
     'wallet_config': { type: 'Fafnir', description: 'Its wallet and where it listens.' },

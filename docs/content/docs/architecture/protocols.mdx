@@ -16,6 +16,8 @@ description: "The open protocols EUNOMIA speaks, what each one is for, and where
 
 ## Dataspace Protocol
 
+<Callout type="info">"Provider" and "consumer" here are the roles two agents take in one exchange: the one whose catalog is used and the one that negotiates for it. Any agent can take either.</Callout>
+
 DSP defines three state machines between a consumer and a provider. EUNOMIA's agents expose them under `/dsp/current`, and an RPC layer (`…/rpc/setup-*`) that lets you drive each transition from the side that owns it.
 
 ### Catalog

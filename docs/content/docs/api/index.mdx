@@ -21,9 +21,7 @@ These pages are generated from the specs in the repository, `npm run generate:ap
 
 | | From your machine | From a container |
 | --- | --- | --- |
-| Authority | `http://127.0.0.1:1500` | `http://host.docker.internal:1500` |
-| Provider | `http://127.0.0.1:1200` | `http://host.docker.internal:1200` |
-| Consumer | `http://127.0.0.1:1100` | `http://host.docker.internal:1100` |
+| An authority or agent | `http://127.0.0.1:<its port>` (`eunomia ls`) | `http://host.docker.internal:<its port>` |
 | Demo factory | `http://127.0.0.1:1210` (pull), `:1220` (push) | `http://host.docker.internal:1210`, `:1220` |
 
 Management routes are under `/api/v1`, Dataspace Protocol routes under `/dsp/current`. The addresses the agents put in DSP and GNAP messages must be the container ones.
@@ -38,12 +36,12 @@ Management routes are under `/api/v1`, Dataspace Protocol routes under `/dsp/cur
 | Link the wallet | `POST /api/v1/wallet/link` | any |
 | Ask for a credential | `POST /api/v1/vc-request/beg` | agent |
 | Credential requests | `GET /api/v1/vc-request/all` | agent |
-| Gaia-X self-attested VCs | `POST /api/v1/gaia/generate` | consumer |
-| Connect to a provider | `POST /api/v1/peer-connection/connect` | consumer |
-| Catalog of a provider | `POST /dsp/current/catalog/rpc/setup-catalog-request` | consumer |
-| Negotiation steps | `POST /dsp/current/negotiations/rpc/<step>` | both |
-| Transfer steps | `POST /dsp/current/transfers/rpc/<step>` | both |
-| Datasets, distributions, policies | `/api/v1/catalog-agent/...` | provider |
-| Connector templates and instances | `/api/v1/connector/...` | provider |
+| Gaia-X self-attested VCs | `POST /api/v1/gaia/generate` | agent |
+| Connect to another agent | `POST /api/v1/peer-connection/connect` | the agent that connects |
+| Another agent's catalog | `POST /dsp/current/catalog/rpc/setup-catalog-request` | the consumer |
+| Negotiation steps | `POST /dsp/current/negotiations/rpc/<step>` | consumer and provider |
+| Transfer steps | `POST /dsp/current/transfers/rpc/<step>` | consumer and provider |
+| Datasets, distributions, policies | `/api/v1/catalog-agent/...` | the agent that publishes |
+| Connector templates and instances | `/api/v1/connector/...` | the agent that publishes |
 
 [Onboarding](/docs/architecture/onboarding) shows the bodies of the onboarding calls and [Exchanging data](/docs/guides/data-exchange) those of the catalog, negotiation and transfer calls. `./eunomia e2e -v` prints every request and response it sends.

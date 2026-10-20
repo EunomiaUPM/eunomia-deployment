@@ -6,7 +6,7 @@
 [![GAIA-X](https://img.shields.io/badge/GAIA--X-Compliant-00A86B)](https://gaia-x.eu/)
 [![Open in GitHub Codespaces](https://img.shields.io/badge/Open_in-Codespaces-181717?logo=github)](https://codespaces.new/EunomiaUPM/eunomia-deployment)
 
-Deploy a complete [EUNOMIA](https://github.com/EunomiaUPM) data space: an authority, a provider and a consumer, onboarded with verifiable credentials, and a demo factory whose robots the provider shares under negotiated contracts. On one machine for development and demos, or one participant per server in production.
+Run [EUNOMIA](https://github.com/EunomiaUPM) data spaces: authorities that admit participants with verifiable credentials, and as many agents as you need, each one able to publish a catalog and to negotiate and exchange data with any other. `eunomia` works as a hypervisor of these instances: on one machine for development and demos, or one per server in production.
 
 ## Quick start
 
@@ -15,14 +15,18 @@ All you need is Docker.
 ```bash
 git clone https://github.com/EunomiaUPM/eunomia-deployment.git
 cd eunomia-deployment
-./eunomia doctor   # check Docker, ports and versions
-./eunomia up       # start, onboard, populate the catalog
-./eunomia e2e      # negotiate a contract, pull the robots, receive their events
+./eunomia doctor                                # check Docker, ports and versions
+./eunomia authority add authority               # an authority
+./eunomia agent add alice                       # two agents, onboarded with it
+./eunomia agent add bob
+./eunomia demo up                               # a demo backend: a factory with robots
+./eunomia catalog populate alice                # alice publishes it
+./eunomia e2e --consumer bob --provider alice   # bob negotiates, pulls the robots, streams their events
 ```
 
 On Windows, use `.\eunomia.cmd` instead of `./eunomia`. No Docker at hand? Open the repository in GitHub Codespaces.
 
-Then open the consumer console at <http://127.0.0.1:1100/admin/login> (`eunomia` / `eunomia`), or run `./eunomia demo events` to watch the robot events arrive through the data space.
+`./eunomia ls` lists the instances and their URLs; an agent's console is its URL plus `/admin/login` (`eunomia` / `eunomia`). Any agent can play either role: `./eunomia catalog populate bob` and `./eunomia e2e --consumer alice --provider bob` run it the other way round.
 
 ## Documentation
 
@@ -39,7 +43,7 @@ npm run generate:api   # after changing an OpenAPI spec
 
 ## Components
 
-- **[DS-Agent](https://github.com/EunomiaUPM/ds-agent)**: the dataspace agent of each participant.
+- **[DS-Agent](https://github.com/EunomiaUPM/ds-agent)**: the agent every participant runs.
 - **[Heimdall](https://github.com/EunomiaUPM/heimdall)**: the dataspace authority.
 - **[Fafnir](https://github.com/EunomiaUPM/fafnir-wallet)**: the wallet next to each of them.
 - **[Ymir](https://github.com/EunomiaUPM/ymir)**: the core library they share.

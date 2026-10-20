@@ -1,11 +1,11 @@
 ---
 title: "Agent in production"
-description: "Deploy a provider or consumer agent on its own server, with Vault, TLS and did:web."
+description: "Deploy an agent on its own server, with Vault, TLS and did:web."
 ---
 
 Run the `docker compose` commands below from `deployment/prod/`: the image versions come from `versions.env` at the repo root.
 
-This guide walks you through deploying an Eunomia Agent in production mode. Several services depend on each other, so follow the steps **in order** - do not skip ahead. For this tutorial we will be using the consumer variables, however, it can act as both consumer and provider at the same time.
+This guide walks you through deploying an Eunomia Agent in production mode. Several services depend on each other, so follow the steps **in order** - do not skip ahead. Every agent is the same: once deployed it can publish a catalog and negotiate with any other agent, in both directions.
 
 ---
 
@@ -26,7 +26,7 @@ Heimdall uses two kinds of certificates in production:
 
 ### Domain certificates
 
-These live in `/vault/consumer/config/`. Replace every `.example` file with the real certificate and remove the `.example` extension so they end in `.pem`. All files must be in PEM format (both RSA and Elliptic Curve are supported).
+These live in `/vault/agent/config/`. Replace every `.example` file with the real certificate and remove the `.example` extension so they end in `.pem`. All files must be in PEM format (both RSA and Elliptic Curve are supported).
 
 | File                  | Description                                                                                                                                                          |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -38,7 +38,7 @@ These live in `/vault/consumer/config/`. Replace every `.example` file with the 
 
 ### Ecosystem certificates and secrets
 
-These live in `/vault/consumer/secrets/`. They are loaded into Vault automatically on first startup. For each `.example` file in that directory, remove the `.example` extension.
+These live in `/vault/agent/secrets/`. They are loaded into Vault automatically on first startup. For each `.example` file in that directory, remove the `.example` extension.
 
 There are two types of files:
 
@@ -60,21 +60,22 @@ Fill in the environment files that do not depend on other services yet. All file
 
 ### `db.env`
 
-Credentials for the main Agent database. Use whatever values you want, or leave them as they are - just remember them, as they must match `db.json` in `/vault/consumer/secrets/`.
+Credentials for the main Agent database. Use whatever values you want, or leave them as they are - just remember them, as they must match `db.json` in `/vault/agent/secrets/`.
 
 ```dotenv
-POSTGRES_PASSWORD=standalone_consumer
-POSTGRES_USER=standalone_consumer
-POSTGRES_DB=standalone_consumer
+POSTGRES_PASSWORD=eunomia_agent
+POSTGRES_USER=eunomia_agent
+POSTGRES_DB=eunomia_agent
 ```
 
 ## Step 3 - Application configuration
 
-Edit `/static/config/consumer/prod/core.consumer.yaml`:
+Edit `/static/config/agent/prod/core.agent.yaml`:
 
 | Line | Change                                                        |
 | ---- | ------------------------------------------------------------- |
 | 6    | Replace `your_domain` with `your.domain.com` (public URL)     |
+| 82   | Replace `your_agent_name` with the name it presents to its peers |
 | 90   | Replace `your_domain` with `your.domain.com` (the `did:web`)  |
 
 ---
@@ -84,7 +85,7 @@ Edit `/static/config/consumer/prod/core.consumer.yaml`:
 Start only Vault and databases. The Agent is not started yet - it depends on the configuration obtained in the next steps.
 
 ```bash
-docker compose --env-file ../../versions.env -f docker-compose.consumer.yaml up consumer-vault consumer-redis consumer-db -d
+docker compose --env-file ../../versions.env -f docker-compose.agent.yaml up agent-vault agent-redis agent-db -d
 ```
 
 Wait a few seconds for all services to be ready before proceeding.
@@ -93,12 +94,12 @@ Wait a few seconds for all services to be ready before proceeding.
 
 ## Step 5 - Initialize and unseal Vault
 
-> **Important:** This step is only done once. Vault data is persisted in `/vault/consumer/data` - as long as this volume exists, you will never need to reinitialize.
+> **Important:** This step is only done once. Vault data is persisted in `/vault/agent/data` - as long as this volume exists, you will never need to reinitialize.
 
 In a new terminal, run:
 
 ```bash
-docker exec consumer-vault vault operator init -address=https://your.domain.com:8200
+docker exec agent-vault vault operator init -address=https://your.domain.com:8200
 ```
 
 Even if port 8200 is not open externally, this will work - the command runs inside the container and NAT handles the routing.
@@ -124,9 +125,9 @@ Initial Root Token: hvs.gpnaq703noTvBOJk0WnJkMcOKz
 Vault starts sealed and must be unsealed with 3 of the 5 keys before it can be used:
 
 ```bash
-docker exec consumer-vault vault operator unseal -address=https://your.domain.com:8200 UNSEAL_KEY_1
-docker exec consumer-vault vault operator unseal -address=https://your.domain.com:8200 UNSEAL_KEY_2
-docker exec consumer-vault vault operator unseal -address=https://your.domain.com:8200 UNSEAL_KEY_3
+docker exec agent-vault vault operator unseal -address=https://your.domain.com:8200 UNSEAL_KEY_1
+docker exec agent-vault vault operator unseal -address=https://your.domain.com:8200 UNSEAL_KEY_2
+docker exec agent-vault vault operator unseal -address=https://your.domain.com:8200 UNSEAL_KEY_3
 ```
 
 > You need to unseal Vault every time the container restarts.
@@ -157,8 +158,8 @@ VAULT_CLIENT_KEY=/app/vault/config/vault-key.pem
 # Local path to Vault config
 VAULT_PATH=/app/vault/
 
-# KV v2 mount name - can be anything, e.g. "consumer"
-VAULT_MOUNT=consumer
+# KV v2 mount name - can be anything, e.g. "agent"
+VAULT_MOUNT=agent
 
 # Secret paths - these act as internal paths, keep them private
 VAULT_APP_DB=database/postgres
@@ -180,14 +181,14 @@ VAULT_APP_ROOT_CLIENT_KEY=crypto/keys/vault-root-cert.pem
 With all environment files complete, start all services:
 
 ```bash
-docker compose --env-file ../../versions.env -f docker-compose.consumer.yaml up -d
+docker compose --env-file ../../versions.env -f docker-compose.agent.yaml up -d
 ```
 
-or, from the repo root, `./eunomia up consumer --env prod`, which also waits for every service to be ready.
+or, from the repo root, `./eunomia prod up agent`, which also waits for every service to be ready. Then register it, from any machine that will manage the data space: `./eunomia remote add <name> --kind agent --url https://your.domain.com`.
 
 <Callout type="info">
-**Fafnir wallet.** The compose file also starts `consumer-fafnir-setup` and `consumer-fafnir-wallet`. The wallet runs with
-file-based secrets (`is_vault_real: false` in `static/config/consumer/prod/fafnir.consumer.yaml`): fafnir v0.2.0 writes its DB
+**Fafnir wallet.** The compose file also starts `agent-fafnir-setup` and `agent-fafnir-wallet`. The wallet runs with
+file-based secrets (`is_vault_real: false` in `static/config/agent/prod/fafnir.agent.yaml`): fafnir v0.2.0 writes its DB
 secret to Vault under one key and reads it back from another, so it cannot boot against a real Vault. It only holds
 the DB credentials from `db.json`, and publishes no port.
 </Callout>
@@ -201,7 +202,7 @@ All services should now be running. Visit `https://your.domain.com/admin/login` 
 Every time the Vault container restarts, it needs to be unsealed again with 3 of the 5 unseal keys:
 
 ```bash
-docker exec consumer-vault vault operator unseal -address=https://your.domain.com:8200 UNSEAL_KEY_1
-docker exec consumer-vault vault operator unseal -address=https://your.domain.com:8200 UNSEAL_KEY_2
-docker exec consumer-vault vault operator unseal -address=https://your.domain.com:8200 UNSEAL_KEY_3
+docker exec agent-vault vault operator unseal -address=https://your.domain.com:8200 UNSEAL_KEY_1
+docker exec agent-vault vault operator unseal -address=https://your.domain.com:8200 UNSEAL_KEY_2
+docker exec agent-vault vault operator unseal -address=https://your.domain.com:8200 UNSEAL_KEY_3
 ```

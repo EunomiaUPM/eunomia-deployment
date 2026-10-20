@@ -1,6 +1,6 @@
 ---
 title: "Quickstart"
-description: "From nothing to a negotiated contract and data flowing between two participants, in a few commands."
+description: "From a clean machine to an authority, two agents and data flowing between them, in a few commands."
 ---
 
 You need Docker running and this repository checked out. Nothing else: see [Requirements](/docs/requirements).
@@ -21,46 +21,61 @@ No Docker on this machine? [Open the repository in GitHub Codespaces](https://co
 ./eunomia doctor
 ```
 
-It checks Docker, Docker Compose v2, the ports the deployment uses and the image versions, and says what to fix when something is off.
+It checks Docker, Docker Compose v2, free ports and the image versions, and says what to fix when something is off.
 
-## 2. Start the dataspace
+## 2. Create the data space
 
 ```bash
-./eunomia up
+./eunomia authority add authority
+./eunomia agent add alice
+./eunomia agent add bob
 ```
 
-The first run downloads the images, which takes a few minutes. Then `up`:
+The first command downloads the images, which takes a few minutes. Then:
 
-1. Starts the **authority** (Heimdall), the **provider** and the **consumer**, each with its wallet and database, and the **demo factory** behind the provider.
-2. **Onboards** them: the provider and the consumer get a participant credential from the authority, the consumer gets its Gaia-X credentials, and the consumer connects to the provider.
-3. **Populates the provider catalog** with the factory's dataset, its policies and its connectors.
+- **`authority`** is the data space's authority: it admits agents and issues their credentials.
+- **`alice`** and **`bob`** are two agents. Each one is onboarded as it is created: it links its wallet and gets its membership and Gaia-X credentials from the authority.
 
-It ends with the URLs:
+The names are yours to choose. Every instance takes free ports; `./eunomia ls` lists them with their URLs:
 
-| What | URL | Login |
-| --- | --- | --- |
-| Authority | [http://127.0.0.1:1500/admin/home](http://127.0.0.1:1500/admin/home) | |
-| Provider | [http://127.0.0.1:1200/admin/login](http://127.0.0.1:1200/admin/login) | `eunomia` / `eunomia` |
-| Consumer | [http://127.0.0.1:1100/admin/login](http://127.0.0.1:1100/admin/login) | `eunomia` / `eunomia` |
-| Factory, robots (pull) | [http://127.0.0.1:1210/docs](http://127.0.0.1:1210/docs) | bearer token, see below |
-| Factory, robot events (push) | [http://127.0.0.1:1220/docs](http://127.0.0.1:1220/docs) | bearer token |
-| Factory Keycloak | [http://127.0.0.1:1230](http://127.0.0.1:1230) | `admin` / `admin` |
-
-Every step checks it worked and is skipped when already done, so `up` is also how you update: `git pull`, then `./eunomia up`.
-
-## 3. Exchange data
-
-```bash
-./eunomia e2e
+```text
+NAME       KIND             WHERE   URL                     STATE
+alice      agent            local   http://127.0.0.1:1601   running (healthy)
+authority  authority (eco)  local   http://127.0.0.1:1600   running (healthy)
+bob        agent            local   http://127.0.0.1:1602   running (healthy)
 ```
 
-The consumer asks for the provider's catalog, negotiates a contract over the factory dataset, pulls the robots through the provider and receives a robot event pushed through the dataspace. It ends with `END-TO-END TEST PASSED`.
+Open an agent's console at its URL plus `/admin/login` (`eunomia` / `eunomia`).
 
-To see it as a consumer application would:
+## 3. Share data
+
+Any agent can publish data and any agent can consume it. Start the demo factory, a backend with robots, and let alice publish it:
 
 ```bash
-./eunomia demo robots    # the robots, pulled through the dataspace, as JSON
-./eunomia demo events    # the robot events, live, until Ctrl+C
+./eunomia demo up
+./eunomia catalog populate alice
+```
+
+Then let bob get it:
+
+```bash
+./eunomia e2e --consumer bob --provider alice
+```
+
+bob connects to alice, asks for her catalog, negotiates a contract over the factory dataset, pulls the robots through alice and receives a robot event she pushes. It ends with `END-TO-END TEST PASSED`.
+
+To see it as an application would:
+
+```bash
+./eunomia demo robots --consumer bob --provider alice    # the robots, as JSON
+./eunomia demo events --consumer bob --provider alice    # the robot events, live, until Ctrl+C
+```
+
+The roles are per exchange. Publish the catalog in bob too, and alice can consume from him:
+
+```bash
+./eunomia catalog populate bob
+./eunomia e2e --consumer alice --provider bob
 ```
 
 [Exchanging data](/docs/guides/data-exchange) walks through what happens in each step, and how to do it from the consoles.
@@ -69,12 +84,12 @@ To see it as a consumer application would:
 
 ```bash
 ./eunomia stop     # stop everything, keep the data
-./eunomia up       # start again
-./eunomia down     # remove everything, identities included, to start from scratch
+./eunomia up       # start every instance again
+./eunomia down     # remove every instance and the demo, to start from scratch
 ```
 
 ## Next
 
 - [Architecture](/docs/architecture): what each piece does.
-- [Extra participants](/docs/deployment/instances): more connectors and authorities, for example one each per team.
+- [Local data space](/docs/deployment/local): more agents and authorities, and everything about instances.
 - [Troubleshooting](/docs/troubleshooting) when something fails.

@@ -11,13 +11,13 @@ description: "What the machine needs to run the deployment, and the ports it use
 | **Docker Compose** | v2 or later: `docker compose`, not `docker-compose` | Included in Docker Desktop. On Linux, the `docker-compose-plugin` package |
 | **Python** | Optional: 3.8 or later | Without it, the CLI runs in a container (see below) |
 
-About 4 GB of free memory for Docker and 3 GB of disk for the images.
+About 4 GB of free memory for Docker. An agent with its wallet, database and cache uses around 200 MB at rest, so several fit in a few gigabytes. Plus 3 GB of disk for the images.
 
 `./eunomia doctor` checks all of this, and `./eunomia doctor --images` also checks that every pinned image can be pulled.
 
 ## In GitHub Codespaces
 
-The repository has a dev container ([`.devcontainer/devcontainer.json`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/.devcontainer/devcontainer.json)) with Python and Docker-in-Docker, on a 4-core, 8 GB machine. [Open it in Codespaces](https://codespaces.new/EunomiaUPM/eunomia-deployment) and every command on these pages works the same; the deployment ports are forwarded with their names.
+The repository has a dev container ([`.devcontainer/devcontainer.json`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/.devcontainer/devcontainer.json)) with Python and Docker-in-Docker, on a 4-core, 8 GB machine. [Open it in Codespaces](https://codespaces.new/EunomiaUPM/eunomia-deployment) and every command on these pages works the same; the ports of the instances and the demo factory are forwarded as they appear.
 
 ## With or without Python
 
@@ -27,17 +27,14 @@ To have `eunomia` on your `PATH` instead of `./eunomia`: `pip install -e .`
 
 ## Ports
 
-The standalone deployment publishes these ports on the host. `./eunomia up` refuses to start if one is taken by another program.
+| Ports | What |
+| --- | --- |
+| `1600-1999` | HTTP of the instances: each authority and agent takes the first free one |
+| `15400-15999` | Postgres of the instances, the same way |
+| `1210`, `1220`, `1230` | The demo factory: static API (pull), dynamic API (push), Keycloak |
+| `1290` | Where `e2e` and `demo events` receive pushed events, while they run |
 
-| Port | Service | Port | Service |
-| --- | --- | --- | --- |
-| `1500` | Authority (Heimdall) | `1450` | Authority database |
-| `1200` | Provider agent | `1400` | Provider database |
-| `1100` | Consumer agent | `1300` | Consumer database |
-| `1210` | Factory static API (pull) | `1220` | Factory dynamic API (push) |
-| `1230` | Factory Keycloak | `1290` | Where `e2e` and `demo events` receive pushed events, while they run |
-
-The agent ports are fixed, because the participants advertise them to each other. The others can move: see [Configuration](/docs/deployment/configuration). [Extra participants](/docs/deployment/instances) take free ports in `1600-1999` and `15400-15999`.
+Every range and port can move: see [Configuration](/docs/deployment/configuration). `./eunomia doctor` checks there are free ones.
 
 ## Linux
 

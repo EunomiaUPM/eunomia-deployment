@@ -3,21 +3,24 @@ title: "Introduction"
 description: "EUNOMIA is an open-source framework for data spaces. This is how to deploy one, understand it and build on it."
 ---
 
-A **data space** is a network where organisations share data under rules they agree on: who may use it, for what, until when. Every participant proves who it is with verifiable credentials, every exchange starts with a contract, and the data travels through the provider's own connector, never around it.
+A **data space** is a network where organisations share data under rules they agree on: who may use it, for what, until when. Every participant proves who it is with verifiable credentials, every exchange starts with a contract, and the data travels through the agent of whoever owns it, never around it.
 
-**EUNOMIA** builds data spaces from open standards (the Dataspace Protocol, ODRL, GNAP, OpenID for Verifiable Credentials, W3C Verifiable Credentials) with a small set of Rust components, and this repository deploys them. On one machine, three commands give you an authority, a provider and a consumer, onboarded and connected, and a demo factory whose robots the provider shares:
+**EUNOMIA** builds data spaces from open standards (the Dataspace Protocol, ODRL, GNAP, OpenID for Verifiable Credentials, W3C Verifiable Credentials) with a small set of Rust components, and this repository deploys them. On one machine, a handful of commands give you an authority and as many agents as you want, onboarded, and a demo factory full of robots any agent can share:
 
 ```bash
-./eunomia doctor   # check Docker, ports and versions
-./eunomia up       # start, onboard, populate the catalog
-./eunomia e2e      # negotiate a contract, pull the robots, receive their events
+./eunomia authority add authority                # an authority
+./eunomia agent add alice                        # two agents, onboarded with it
+./eunomia agent add bob
+./eunomia demo up                                # a backend full of robots
+./eunomia catalog populate alice                 # alice publishes it
+./eunomia e2e --consumer bob --provider alice    # bob negotiates, pulls and streams
 ```
 
 <Cards>
   <Card title="Quickstart" href="/docs/quickstart" description="From a clean machine to data flowing between two participants." />
   <Card title="Architecture" href="/docs/architecture" description="Participants, trust, protocols and the data plane." />
   <Card title="Components" href="/docs/components" description="DS-Agent, Heimdall, Fafnir and Ymir, one by one." />
-  <Card title="Deployment" href="/docs/deployment" description="Standalone on one machine, or one participant per server." />
+  <Card title="Deployment" href="/docs/deployment" description="Any number of agents on one machine, or one per server." />
   <Card title="The eunomia CLI" href="/docs/cli" description="Every command, with the workflows that use them." />
   <Card title="API reference" href="/docs/api" description="The agent, authority and demo factory APIs, from their OpenAPI specs." />
 </Cards>
@@ -25,10 +28,10 @@ A **data space** is a network where organisations share data under rules they ag
 ## What you get
 
 - **An authority** ([Heimdall](/docs/components/heimdall)) that onboards participants and issues their credentials, Gaia-X ones included.
-- **Agents** ([DS-Agent](/docs/components/ds-agent)) that publish catalogs, negotiate ODRL contracts and move data over the Dataspace Protocol, pulled on demand or pushed as events.
+- **Agents** ([DS-Agent](/docs/components/ds-agent)), all alike: each one can publish a catalog, negotiate ODRL contracts with any other and move data over the Dataspace Protocol, pulled on demand or pushed as events.
 - **A wallet** ([Fafnir](/docs/components/fafnir)) next to each of them, holding its keys, DID and credentials.
 - **A demo backend** ([the factory](/docs/components/demo-factory)) with robots to pull and robot events to stream.
-- **One CLI** ([`eunomia`](/docs/cli)) that starts, onboards, tests and inspects all of it, and adds more participants on demand.
+- **One CLI** ([`eunomia`](/docs/cli)) that works as a hypervisor: it creates, starts, onboards, connects and removes authorities and agents by name, on this machine or on servers.
 
 ## Who builds it
 
