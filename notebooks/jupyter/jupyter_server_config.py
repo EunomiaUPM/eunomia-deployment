@@ -1,6 +1,6 @@
-"""JupyterLab as `eunomia <extension> notebook` runs it (JUPYTER_CONFIG_DIR=notebooks/jupyter).
+"""JupyterLab as `eunomia notebook` (or `eunomia <extension> notebook`) runs it (JUPYTER_CONFIG_DIR=notebooks/jupyter).
 
-`eunomia <extension> notebook` opens a session (notebooks/sessions/<ext>/<pair>/), which
+Both open a session (notebooks/sessions/<eunomia or extension>/<pair>/), which
 keeps its outputs. Should a Jupyter ever save the sources in notebooks/
 themselves, they are saved without outputs: those carry the DIDs and GNAP
 tokens of whoever ran them, and the sources are in git.

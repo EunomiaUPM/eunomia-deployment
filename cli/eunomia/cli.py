@@ -6,7 +6,7 @@ import argparse
 import sys
 from typing import List, Optional
 
-from . import __version__, catalog, extensions, log, settings
+from . import __version__, catalog, extensions, log, notebooks, settings
 from .commands import doctor, images, instances, onboard, restart, stack
 
 EPILOG = """\
@@ -19,6 +19,7 @@ the demo is one:
   eunomia agent add alice
   eunomia agent add bob
   eunomia login alice bob
+  eunomia notebook alice bob
   eunomia demo up
   eunomia demo publish alice
   eunomia demo test --consumer bob --provider alice
@@ -113,6 +114,15 @@ def build_parser(builtin_extensions_only: bool = False) -> argparse.ArgumentPars
     csub.required = True
     cs = csub.add_parser("show", help="list an agent's datasets, distributions and connector instances")
     cs.add_argument("agent")
+
+    # -- notebooks: any two agents, any dataset ---------------------------------
+    notebooks.add_command(
+        sub,
+        notebooks.CORE_SESSIONS,
+        notebooks.generic(),
+        help="notebooks against any two agents: catalog, negotiation, pull and push, call by call",
+        dataset_option=True,
+    )
 
     # -- production and maintenance ----------------------------------------------
     p = sub.add_parser("prod", help="the production node of this server")

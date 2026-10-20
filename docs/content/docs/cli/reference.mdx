@@ -230,6 +230,30 @@ options:
   -h, --help  show this help message and exit
 ```
 
+## `eunomia notebook`
+
+Notebooks against any two agents: catalog, negotiation, pull and push, call by call.
+
+```text
+eunomia notebook [-h] [--dataset DATASET] [--execute] [--flow {pull,push}] [--no-browser]
+                        [--fresh]
+                        provider consumer
+
+positional arguments:
+  provider            the agent that publishes
+  consumer            the agent that negotiates and receives
+
+options:
+  -h, --help          show this help message and exit
+  --dataset DATASET   which dataset to negotiate: part of its title or id (default: the first with
+                      a policy)
+  --execute           run the flows headless instead of opening JupyterLab
+  --flow {pull,push}  with --execute, only this flow (repeatable)
+  --no-browser        start JupyterLab without opening a browser
+  --fresh             copy every source notebook into the session again, dropping its outputs and
+                      edits
+```
+
 ## `eunomia prod`
 
 The production node of this server.
@@ -414,7 +438,7 @@ options:
 
 ### `eunomia demo notebook`
 
-The notebooks, with one agent as the provider and another as the consumer.
+The extension's notebooks, with one agent as the provider and another as the consumer.
 
 ```text
 eunomia demo notebook [-h] [--execute] [--flow {pull,push}] [--no-browser] [--fresh]

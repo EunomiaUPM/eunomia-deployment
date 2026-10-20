@@ -3,7 +3,7 @@
  * Mono, mist paper and indigo ink in the light theme, night indigo with sky
  * and violet in the dark one, the sky → violet → magenta gradient on titles.
  *
- * `eunomia <extension> notebook` loads it (JUPYTER_CONFIG_DIR=notebooks/jupyter,
+ * `eunomia notebook` loads it (JUPYTER_CONFIG_DIR=notebooks/jupyter,
  * --custom-css). The selectors carry the theme attribute so they win over
  * the theme's own :root variables, which load after this file.
  */

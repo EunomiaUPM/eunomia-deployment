@@ -1,17 +1,24 @@
 """Notebooks against two agents of this data space, one session per pair.
 
-An extension brings its notebooks (ext.NotebookSet); eunomia adds the core
-ones: 01_auth.ipynb (the two agents, their DIDs and GNAP tokens), helpers.py
-(every API call as a card, lists as tables) and the JupyterLab theme.
-`eunomia <extension> notebook <provider> <consumer>` logs the two agents in,
-then opens JupyterLab on the pair's session; with --execute it runs the
-extension's flows headless.
+They are the way to work with a data space call by call, for anything
+concrete, not something of the demo:
+
+  eunomia notebook <provider> <consumer>         the generic ones, with any
+                                                 dataset the provider publishes
+  eunomia <extension> notebook <provider> <c.>   an extension's own
+
+Shared by all: 01_auth.ipynb (the two agents, their DIDs and GNAP tokens),
+helpers.py (every API call as a card, lists as tables) and the JupyterLab
+theme. The generic flows are in notebooks/generic/: the provider's catalog,
+a pull and a push, over the dataset --dataset names (or the first one with
+a policy). Each command logs the two agents in, then opens JupyterLab on the
+pair's session; with --execute it runs the flows headless.
 
 Each session is independent, so several run at once (alice → bob next to
 bob → inaki): its own copy of the notebooks in
 notebooks/sessions/<extension>/<provider>-<consumer>/, where its outputs and
 edits stay; its own port for the pushed events; its own JupyterLab
-workspace. The sources are copied in again when they change (or always,
+workspace. The generic notebooks' sessions are under sessions/eunomia/. The sources are copied in again when they change (or always,
 with --fresh).
 
 Jupyter lives in a virtualenv under notebooks/.venv, created the first time
@@ -27,17 +34,21 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List
+import argparse
+from typing import Dict, List, Optional
 
 from . import compose, exchange, log, settings
 from .commands import onboard
 from .commands.onboard import Peer
+from .ext import NotebookSet
 from .settings import REPO_ROOT
 
 NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
 VENV_DIR = NOTEBOOKS_DIR / ".venv"
 RUNS_DIR = NOTEBOOKS_DIR / ".runs"
 SESSIONS_DIR = NOTEBOOKS_DIR / "sessions"
+# The core's own session name, next to the extensions' names.
+CORE_SESSIONS = "eunomia"
 # JupyterLab's custom.css, dressed like the docs. Jupyter only reads it from
 # its config dir, so JupyterLab runs with that dir pointed here.
 CONFIG_DIR = NOTEBOOKS_DIR / "jupyter"
@@ -64,7 +75,46 @@ def environment(provider: Peer, consumer: Peer, port: int) -> Dict[str, str]:
 
 
 def core_notebooks() -> List[Path]:
+    """What every session gets: 01_auth. The generic flows are a NotebookSet of their own."""
     return sorted(NOTEBOOKS_DIR.glob("*.ipynb"))
+
+
+def generic() -> NotebookSet:
+    """The core's notebooks: any provider, any dataset it publishes."""
+    return NotebookSet(
+        directory=NOTEBOOKS_DIR / "generic",
+        flows={"pull": "03_pull_flow.ipynb", "push": "04_push_flow.ipynb"},
+    )
+
+
+def add_command(actions: "argparse._SubParsersAction", session_name: str, nb: NotebookSet, help: str,
+                dataset_option: bool = False) -> None:
+    """`notebook <provider> <consumer>` with its options, for the core or an extension."""
+    from .ext import agent
+
+    p = actions.add_parser("notebook", help=help)
+    p.add_argument("provider", help="the agent that publishes")
+    p.add_argument("consumer", help="the agent that negotiates and receives")
+    if dataset_option:
+        p.add_argument("--dataset", help="which dataset to negotiate: part of its title or id (default: the first with a policy)")
+    p.add_argument("--execute", action="store_true", help="run the flows headless instead of opening JupyterLab")
+    p.add_argument("--flow", choices=sorted(nb.flows), action="append", help="with --execute, only this flow (repeatable)")
+    p.add_argument("--no-browser", action="store_true", help="start JupyterLab without opening a browser")
+    p.add_argument("--fresh", action="store_true", help="copy every source notebook into the session again, dropping its outputs and edits")
+
+    def run(args: argparse.Namespace) -> int:
+        provider, consumer = agent(args.provider), agent(args.consumer)
+        sources = sorted(nb.directory.glob("*.ipynb"))
+        env = nb.env()
+        dataset: Optional[str] = getattr(args, "dataset", None)
+        if dataset:
+            env["EUNOMIA_DATASET"] = dataset
+        if args.execute:
+            flows = [nb.flows[f] for f in sorted(nb.flows) if not args.flow or f in args.flow]
+            return execute(session_name, sources, env, provider, consumer, flows)
+        return lab(session_name, sources, env, provider, consumer, args.no_browser, args.fresh)
+
+    p.set_defaults(run=run)
 
 
 class Session:

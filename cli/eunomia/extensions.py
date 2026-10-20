@@ -103,25 +103,8 @@ def _add_test(ext: Extension, actions: "argparse._SubParsersAction") -> None:
 
 
 def _add_notebook(ext: Extension, actions: "argparse._SubParsersAction") -> None:
-    from .ext import agent
-
     nb = ext.notebooks()
     assert nb is not None
-    p = actions.add_parser("notebook", help="the notebooks, with one agent as the provider and another as the consumer")
-    p.add_argument("provider", help="the agent that publishes")
-    p.add_argument("consumer", help="the agent that negotiates and receives")
-    p.add_argument("--execute", action="store_true", help="run the flows headless instead of opening JupyterLab")
-    p.add_argument("--flow", choices=sorted(nb.flows), action="append", help="with --execute, only this flow (repeatable)")
-    p.add_argument("--no-browser", action="store_true", help="start JupyterLab without opening a browser")
-    p.add_argument("--fresh", action="store_true", help="copy every source notebook into the session again, dropping its outputs and edits")
-
-    def run(args: argparse.Namespace) -> int:
-        provider, consumer = agent(args.provider), agent(args.consumer)
-        sources = sorted(nb.directory.glob("*.ipynb"))
-        env = nb.env()
-        if args.execute:
-            flows = [nb.flows[f] for f in sorted(nb.flows) if not args.flow or f in args.flow]
-            return notebooks.execute(ext.name, sources, env, provider, consumer, flows)
-        return notebooks.lab(ext.name, sources, env, provider, consumer, args.no_browser, args.fresh)
-
-    p.set_defaults(run=run)
+    notebooks.add_command(
+        actions, ext.name, nb, help="the extension's notebooks, with one agent as the provider and another as the consumer"
+    )

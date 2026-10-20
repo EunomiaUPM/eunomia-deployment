@@ -149,9 +149,15 @@ class Parser(unittest.TestCase):
             build_parser().parse_args(["catalog", "show"])
 
     def test_the_demo_lives_under_its_extension(self):
-        for old in (["e2e"], ["notebook", "alice", "bob"], ["catalog", "populate", "alice"]):
+        for old in (["e2e"], ["catalog", "populate", "alice"]):
             with self.assertRaises(SystemExit):
                 build_parser().parse_args(old)
+
+    def test_notebooks_are_core_and_per_extension(self):
+        core = build_parser().parse_args(["notebook", "alice", "bob", "--dataset", "weather", "--execute", "--flow", "push"])
+        self.assertEqual((core.provider, core.consumer, core.dataset, core.flow), ("alice", "bob", "weather", ["push"]))
+        demo = build_parser().parse_args(["demo", "notebook", "alice", "bob"])
+        self.assertFalse(hasattr(demo, "dataset"))
 
     def test_extension_actions_run_through_dispatch(self):
         self.assertTrue(callable(build_parser().parse_args(["demo", "publish", "alice"]).run))
@@ -160,16 +166,25 @@ class Parser(unittest.TestCase):
 class Notebooks(unittest.TestCase):
     """The core notebook (01_auth) and helpers, shared by every extension's notebooks."""
 
-    def test_core_notebook_reads_only_core_variables(self):
+    def test_core_notebooks_read_only_core_variables(self):
+        """01_auth and the generic flows work with no extension at all."""
         peer = Peer("alice", "http://127.0.0.1:1601", "http://host.docker.internal:1601")
         provided = set(notebooks.environment(peer, peer, 1291))
-        for path in notebooks.core_notebooks():
+        for path in notebooks.core_notebooks() + sorted(notebooks.generic().directory.glob("*.ipynb")):
             for name in re.findall(r'env\(\\?"(EUNOMIA_[A-Z_]+)', path.read_text()):
                 self.assertIn(name, provided, f"{path.name} reads {name}")
 
+    def test_generic_flows_exist(self):
+        nb = notebooks.generic()
+        for name in nb.flows.values():
+            self.assertTrue((nb.directory / name).is_file(), name)
+        # They chain with %run, so the catalog notebook sits next to them.
+        self.assertTrue((nb.directory / "02_catalog.ipynb").is_file())
+
     def test_committed_without_outputs(self):
         # The outputs carry DIDs and GNAP tokens of whoever ran them last.
-        sources = notebooks.core_notebooks() + sorted((ROOT / "extensions").glob("*/notebooks/*.ipynb"))
+        sources = notebooks.core_notebooks() + sorted(notebooks.generic().directory.glob("*.ipynb"))
+        sources += sorted((ROOT / "extensions").glob("*/notebooks/*.ipynb"))
         self.assertTrue(sources)
         for path in sources:
             for cell in json.loads(path.read_text())["cells"]:
@@ -237,7 +252,7 @@ class Extensions(unittest.TestCase):
             build_parser(builtin_extensions_only=True).parse_args(["lab", "hello"])
 
     def test_an_extension_cannot_take_a_core_command(self):
-        self._external("status")
+        self._external("notebook")
         with self.assertRaises(log.Abort):
             build_parser()
 
