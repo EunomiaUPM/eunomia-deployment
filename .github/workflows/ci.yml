@@ -35,6 +35,26 @@ jobs:
       - run: go vet ./...
       - run: go build ./...
 
+  docs:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci
+      - name: The API reference matches the OpenAPI specs
+        run: |
+          npm run generate:api
+          git diff --exit-code -- content/docs/api || (echo "Run: npm run generate:api" && exit 1)
+      - run: npm run types:check
+      - run: npm run build
+
   compose-config:
     runs-on: ubuntu-latest
     steps:
