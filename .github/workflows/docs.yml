@@ -4,7 +4,7 @@ name: Docs
 # https://eunomiaupm.github.io/eunomia-deployment
 on:
   push:
-    branches: [main]
+    branches: [main, prep/hack-documentation]
     paths: ["docs/**", "static/specs/**", "extensions/*/service/specs/**", ".github/workflows/docs.yml"]
   workflow_dispatch:
 
