@@ -61,13 +61,13 @@ common_config: &common_config
   connection:
     is_prod: false
     is_vault_real: false
-    has_tls_proxy: false
+    has_proxy: true
   oauth:
     provider: keycloak
     # nginx forwards the user's token in X-Eunomia-User-Token (the default user_header).
     # Verifying it against the realm instead of trusting the proxy:
-    # strict: true
-    # issuer: 'http://keycloak.localhost/realms/provider'
+    strict: true
+    issuer: 'http://keycloak.localhost/realms/provider'
 
 # ==========================
 # MONOLITH
@@ -106,6 +106,7 @@ ssi_auth:
   client_config:
     class_id: 'Provider'
     display: null
+  oid4vp_service: V1_0
   verify_req_config:
     is_cert_allowed: false
     auto_approve_cert: false

@@ -14,5 +14,5 @@ db_config:
   url: 'provider-db'
   port: '5432'
 
-is_docker: false
+is_docker: true
 is_vault_real: false

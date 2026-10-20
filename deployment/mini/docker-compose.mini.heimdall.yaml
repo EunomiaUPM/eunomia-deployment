@@ -16,7 +16,7 @@ services:
 
   fafnir-setup:
     container_name: "fafnir-setup"
-    image: "rmenendez8/fafnir:v0.3.test"
+    image: "rmenendez8/fafnir:v0.3.0"
     restart: "no"
     depends_on:
       heimdall-db:
@@ -35,7 +35,7 @@ services:
 
   fafnir-wallet:
     container_name: "fafnir-wallet"
-    image: "rmenendez8/fafnir:v0.3.test"
+    image: "rmenendez8/fafnir:v0.3.0"
     restart: always
     depends_on:
       fafnir-setup:

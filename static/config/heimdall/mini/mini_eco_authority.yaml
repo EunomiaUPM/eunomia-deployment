@@ -19,7 +19,7 @@ hosts_config:
 connection_config:
   is_prod: false
   is_vault_real: false
-  has_tls_proxy: false
+  has_proxy: false
 
 db_config:
   db_type: Postgres
@@ -58,6 +58,7 @@ issue_config:
     rules_version: 'CD25.10'
     validated_criteria: 'https://docs.gaia-x.eu/policy-rules-committee/compliance-document/25.10/criteria_participant/#PA1.1'
 
+oid4vp_service: V1_0
 verify_req_config:
   is_cert_allowed: true
   auto_approve_cert: true
