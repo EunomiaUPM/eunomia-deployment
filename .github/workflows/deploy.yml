@@ -1,0 +1,130 @@
+name: Deploy
+
+# Prod only, and manual for now: the Fafnir-generation prod configs have not
+# been run against a real Vault yet. To deploy on every push to main again,
+# add this under `on:`
+#
+#   push:
+#     branches:
+#       - main
+#
+# The standalone deployment runs every participant on one host, so there is
+# nothing to spread over three servers: run `./eunomia up` there.
+
+on:
+  workflow_dispatch:
+
+env:
+  # Every compose call passes versions.env: the EUNOMIA images are pinned there.
+  HEIMDALL_COMPOSE: deployment/prod/docker-compose.heimdall.yaml
+  PROVIDER_COMPOSE: deployment/prod/docker-compose.provider.yaml
+  CONSUMER_COMPOSE: deployment/prod/docker-compose.consumer.yaml
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Machine A — Heimdall (Authority)
+  # Must complete before Provider and Consumer
+  # ──────────────────────────────────────────────
+  deploy-heimdall:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Deploy Heimdall via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HEIMDALL_HOST }}
+          username: ${{ secrets.HEIMDALL_USER }}
+          key: ${{ secrets.HEIMDALL_SSH_KEY }}
+          port: ${{ secrets.HEIMDALL_SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+
+            echo "==> Updating repository"
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "==> Authenticating with quay.io"
+            echo "${{ secrets.QUAY_PASSWORD }}" | \
+              docker login quay.io -u "${{ secrets.QUAY_USER }}" --password-stdin
+
+            echo "==> Pulling the pinned images"
+            docker compose --env-file versions.env -f ${{ env.HEIMDALL_COMPOSE }} pull
+
+            echo "==> Starting Heimdall"
+            docker compose --env-file versions.env -f ${{ env.HEIMDALL_COMPOSE }} up -d --wait --remove-orphans
+
+            echo "==> Stack status"
+            docker compose --env-file versions.env -f ${{ env.HEIMDALL_COMPOSE }} ps
+
+  # ──────────────────────────────────────────────
+  # Machine B — Provider
+  # ──────────────────────────────────────────────
+  deploy-provider:
+    runs-on: ubuntu-latest
+    needs: deploy-heimdall
+    environment: prod
+    steps:
+      - name: Deploy Provider via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROVIDER_HOST }}
+          username: ${{ secrets.PROVIDER_USER }}
+          key: ${{ secrets.PROVIDER_SSH_KEY }}
+          port: ${{ secrets.PROVIDER_SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+
+            echo "==> Updating repository"
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "==> Authenticating with quay.io"
+            echo "${{ secrets.QUAY_PASSWORD }}" | \
+              docker login quay.io -u "${{ secrets.QUAY_USER }}" --password-stdin
+
+            echo "==> Pulling the pinned images"
+            docker compose --env-file versions.env -f ${{ env.PROVIDER_COMPOSE }} pull
+
+            echo "==> Starting Provider"
+            docker compose --env-file versions.env -f ${{ env.PROVIDER_COMPOSE }} up -d --wait --remove-orphans
+
+            echo "==> Stack status"
+            docker compose --env-file versions.env -f ${{ env.PROVIDER_COMPOSE }} ps
+
+  # ──────────────────────────────────────────────
+  # Machine C — Consumer
+  # ──────────────────────────────────────────────
+  deploy-consumer:
+    runs-on: ubuntu-latest
+    needs: deploy-heimdall
+    environment: prod
+    steps:
+      - name: Deploy Consumer via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.CONSUMER_HOST }}
+          username: ${{ secrets.CONSUMER_USER }}
+          key: ${{ secrets.CONSUMER_SSH_KEY }}
+          port: ${{ secrets.CONSUMER_SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+
+            echo "==> Updating repository"
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "==> Authenticating with quay.io"
+            echo "${{ secrets.QUAY_PASSWORD }}" | \
+              docker login quay.io -u "${{ secrets.QUAY_USER }}" --password-stdin
+
+            echo "==> Pulling the pinned images"
+            docker compose --env-file versions.env -f ${{ env.CONSUMER_COMPOSE }} pull
+
+            echo "==> Starting Consumer"
+            docker compose --env-file versions.env -f ${{ env.CONSUMER_COMPOSE }} up -d --wait --remove-orphans
+
+            echo "==> Stack status"
+            docker compose --env-file versions.env -f ${{ env.CONSUMER_COMPOSE }} ps
