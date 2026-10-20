@@ -1,3 +1,4 @@
+# Vault: only the committed templates; the setup jobs generate the rest
 vault/**
 !vault/**/
 !vault/**/*.example
@@ -7,11 +8,37 @@ static/envs/**
 !static/envs/**/
 !static/envs/**/*.example
 
+# Generated identity material (the setup jobs write these names)
 cert.json.example
 public_key.json.example
 private_key.json.example
 
-*.ps1
-# hackathon: entry point de Windows y estado local de instancias
-!hack.ps1
+# Extra connectors and authorities: generated config and identities
 instances/
+
+# Private notes, kept out of this public repo
+internal/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.*.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Go (demo factory, local builds and air)
+services/demo-factory/tmp/
+services/demo-factory/eunomia-demo-factory
+
+# Node
+node_modules/
+
+# macOS
+.DS_Store

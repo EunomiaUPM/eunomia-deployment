@@ -1,0 +1,47 @@
+#!/bin/sh
+# Run the eunomia CLI from this checkout: ./eunomia <command>
+#
+# With Python 3.8+ on the machine it runs directly. Without it, or with
+# EUNOMIA_CONTAINER=1, it runs inside a small container (deployment/tools)
+# that only needs Docker.
+ROOT=$(cd "$(dirname "$0")" && pwd)
+
+if [ -z "$EUNOMIA_CONTAINER" ] && command -v python3 >/dev/null 2>&1 \
+    && python3 -c 'import sys; sys.exit(sys.version_info < (3, 8))' 2>/dev/null; then
+    PYTHONPATH="$ROOT/cli${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m eunomia "$@"
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+    echo "eunomia needs Python 3.8+ or Docker. Install Docker Desktop (macOS) or Docker Engine (Linux)." >&2
+    exit 1
+fi
+if ! docker info >/dev/null 2>&1; then
+    echo "Docker is installed but not answering. Start Docker and retry." >&2
+    exit 1
+fi
+
+IMAGE=eunomia-tools:1
+if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+    echo "Building $IMAGE, the container that runs the CLI (first time only)..." >&2
+    docker build -q -t "$IMAGE" "$ROOT/deployment/tools" >/dev/null || exit 1
+fi
+
+TTY=""
+[ -t 0 ] && [ -t 1 ] && TTY="-t"
+# e2e and demo listen for the pushed events: publish that port.
+PORTS=""
+case "$1" in
+    e2e|demo) PORTS="-p ${EUNOMIA_SINK_PORT:-1290}:${EUNOMIA_SINK_PORT:-1290}" ;;
+esac
+
+# The checkout is mounted at the same path as on the host: the compose files
+# bind-mount paths under it, and the Docker daemon resolves those on the host.
+# shellcheck disable=SC2086
+exec docker run --rm -i $TTY $PORTS \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v "$ROOT:$ROOT" -w "$ROOT" \
+    --add-host host.docker.internal:host-gateway \
+    -e EUNOMIA_HOST=host.docker.internal \
+    -e EUNOMIA_SINK_PORT \
+    -e PYTHONPATH="$ROOT/cli" \
+    "$IMAGE" python3 -m eunomia "$@"

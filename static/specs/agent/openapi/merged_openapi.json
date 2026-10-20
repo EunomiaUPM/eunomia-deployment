@@ -1,8 +1,8 @@
 {
     "openapi": "3.0.3",
     "info": {
-        "title": "Eunomia DS-Agent Dataspace Protocol API (Merged)",
-        "description": "Consolidated OpenAPI specification for all Eunomia DS-Agent Agents and Protocols.",
+        "title": "Eunomia DS Dataspace Protocol API (Merged)",
+        "description": "Consolidated OpenAPI specification for all Eunomia DS Agents and Protocols.",
         "version": "1.0.0"
     },
     "servers": [
@@ -33,6 +33,10 @@
         {
             "url": "/dsp/current/transfers",
             "description": "Base path for the Transfer Agent DSP Protocol"
+        },
+        {
+            "url": "/api/v1/keystore",
+            "description": "Base path for the Keystore API"
         },
         {
             "url": "/",
@@ -159,6 +163,18 @@
         {
             "name": "Well-Known",
             "description": "Standard .well-known endpoints"
+        },
+        {
+            "name": "Keystore Parameters",
+            "description": "Plain key/value entries with full JSON value support"
+        },
+        {
+            "name": "Keystore Secrets",
+            "description": "Sensitive key/value entries — values are masked in all responses"
+        },
+        {
+            "name": "Keystore Config",
+            "description": "Runtime application configuration"
         }
     ],
     "paths": {
@@ -526,6 +542,33 @@
                 ],
                 "summary": "Get all mates",
                 "operationId": "getAllMates",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter mates by participant type. Defaults to `all`.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "agents",
+                                "authorities",
+                                "all"
+                            ],
+                            "default": "all"
+                        }
+                    },
+                    {
+                        "name": "exclude",
+                        "in": "query",
+                        "required": false,
+                        "description": "When `true`, excludes the own identity (is_me) from the results.",
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "List of mates",
@@ -662,6 +705,50 @@
                         }
                     }
                 ],
+                "responses": {
+                    "200": {
+                        "description": "Mate details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Mates"
+                ],
+                "summary": "Update extra_fields by ID",
+                "operationId": "putMateById",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "Mate details",
@@ -3606,6 +3693,46 @@
                     },
                     "400": {
                         "$ref": "#/components/responses/BadRequest"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
+            }
+        },
+        "/peer-catalogs": {
+            "get": {
+                "tags": [
+                    "Peer Catalogs"
+                ],
+                "summary": "Get all remote peer catalog",
+                "operationId": "getAllPeerCatalog",
+                "responses": {
+                    "200": {
+                        "description": "Peer Catalogs found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "array",
+                                        "prefixItems": [
+                                            {
+                                                "$ref": "#/components/schemas/Mates"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/Catalog"
+                                            }
+                                        ],
+                                        "minItems": 2,
+                                        "maxItems": 2
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
                     },
                     "500": {
                         "$ref": "#/components/responses/InternalServerError"
@@ -6657,6 +6784,354 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/VersionPath"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
+            }
+        },
+        "/parameters": {
+            "get": {
+                "tags": [
+                    "Keystore Parameters"
+                ],
+                "summary": "List parameters",
+                "operationId": "listParameters",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/KeystorePrefixParam"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of parameters",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/KeystoreParameterView"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Keystore Parameters"
+                ],
+                "summary": "Create parameter",
+                "operationId": "createParameter",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/KeystoreNewParameterCommand"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Parameter created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/KeystoreParameterView"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadRequest"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Conflict"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
+            }
+        },
+        "/parameters/{key}": {
+            "parameters": [
+                {
+                    "$ref": "#/components/parameters/KeystoreKeyParam"
+                }
+            ],
+            "get": {
+                "tags": [
+                    "Keystore Parameters"
+                ],
+                "summary": "Get parameter",
+                "operationId": "getParameter",
+                "responses": {
+                    "200": {
+                        "description": "Parameter found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/KeystoreParameterView"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Keystore Parameters"
+                ],
+                "summary": "Update parameter",
+                "operationId": "updateParameter",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/KeystoreEditParameterCommand"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Parameter updated — returns new version",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/KeystoreVersionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadRequest"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Conflict"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Keystore Parameters"
+                ],
+                "summary": "Delete parameter",
+                "operationId": "deleteParameter",
+                "responses": {
+                    "204": {
+                        "description": "Parameter deleted"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
+            }
+        },
+        "/secrets": {
+            "get": {
+                "tags": [
+                    "Keystore Secrets"
+                ],
+                "summary": "List secrets",
+                "description": "Values are always masked as `\"*****\"`.",
+                "operationId": "listSecrets",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/KeystorePrefixParam"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of secrets",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/KeystoreSecretView"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Keystore Secrets"
+                ],
+                "summary": "Create secret",
+                "operationId": "createSecret",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/KeystoreNewSecretCommand"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Secret created. Value is masked in the response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/KeystoreSecretView"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadRequest"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Conflict"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
+            }
+        },
+        "/secrets/{key}": {
+            "parameters": [
+                {
+                    "$ref": "#/components/parameters/KeystoreKeyParam"
+                }
+            ],
+            "get": {
+                "tags": [
+                    "Keystore Secrets"
+                ],
+                "summary": "Get secret",
+                "description": "Value is always masked as `\"*****\"`.",
+                "operationId": "getSecret",
+                "responses": {
+                    "200": {
+                        "description": "Secret found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/KeystoreSecretView"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Keystore Secrets"
+                ],
+                "summary": "Update secret",
+                "operationId": "updateSecret",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/KeystoreEditSecretCommand"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Secret updated — returns new version",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/KeystoreVersionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/BadRequest"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Conflict"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Keystore Secrets"
+                ],
+                "summary": "Delete secret",
+                "operationId": "deleteSecret",
+                "responses": {
+                    "204": {
+                        "description": "Secret deleted"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/InternalServerError"
+                    }
+                }
+            }
+        },
+        "/config": {
+            "get": {
+                "tags": [
+                    "Keystore Config"
+                ],
+                "summary": "Get application config",
+                "operationId": "getApplicationConfig",
+                "responses": {
+                    "200": {
+                        "description": "Current application configuration",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/KeystoreApplicationConfig"
                                 }
                             }
                         }
@@ -10261,6 +10736,282 @@
                     "protocol",
                     "version"
                 ]
+            },
+            "Mates": {
+                "type": "object",
+                "required": [
+                    "participant_id",
+                    "participant_slug",
+                    "participant_type",
+                    "saved_at",
+                    "last_interaction",
+                    "is_me"
+                ],
+                "properties": {
+                    "participant_id": {
+                        "type": "string"
+                    },
+                    "participant_slug": {
+                        "type": "string"
+                    },
+                    "participant_type": {
+                        "type": "string"
+                    },
+                    "base_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "token": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "token_actions": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "saved_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Formato NaiveDateTime de chrono"
+                    },
+                    "last_interaction": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "extra_fields": {
+                        "nullable": true,
+                        "description": "Valor JSON arbitrario"
+                    },
+                    "is_me": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "KeystoreVersionResponse": {
+                "type": "object",
+                "required": [
+                    "version"
+                ],
+                "properties": {
+                    "version": {
+                        "type": "integer",
+                        "format": "int64",
+                        "minimum": 1,
+                        "description": "New version number after the update",
+                        "example": 2
+                    }
+                }
+            },
+            "KeystoreParameterView": {
+                "type": "object",
+                "required": [
+                    "key",
+                    "version",
+                    "value",
+                    "createdAt",
+                    "updatedAt",
+                    "createdBy",
+                    "updatedBy"
+                ],
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "description": "Path-style key (e.g. /service/timeout)",
+                        "example": "/service/timeout"
+                    },
+                    "version": {
+                        "type": "integer",
+                        "format": "int64",
+                        "minimum": 1,
+                        "example": 1
+                    },
+                    "value": {
+                        "description": "Any valid JSON value (string, number, boolean, array, object)",
+                        "example": 30
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "Connection timeout in seconds"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-05-19T10:00:00Z"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-05-19T10:00:00Z"
+                    },
+                    "createdBy": {
+                        "type": "string",
+                        "example": "admin"
+                    },
+                    "updatedBy": {
+                        "type": "string",
+                        "example": "admin"
+                    }
+                }
+            },
+            "KeystoreNewParameterCommand": {
+                "type": "object",
+                "required": [
+                    "key",
+                    "value"
+                ],
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "pattern": "^(/[a-zA-Z0-9_.\\-]+)+$",
+                        "description": "Path-style key",
+                        "example": "/service/timeout"
+                    },
+                    "value": {
+                        "description": "Any valid JSON value",
+                        "example": 30
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "Connection timeout in seconds"
+                    }
+                }
+            },
+            "KeystoreEditParameterCommand": {
+                "type": "object",
+                "required": [
+                    "value",
+                    "expectedVersion"
+                ],
+                "properties": {
+                    "value": {
+                        "description": "New value (any valid JSON)",
+                        "example": 60
+                    },
+                    "expectedVersion": {
+                        "type": "integer",
+                        "format": "int64",
+                        "minimum": 1,
+                        "description": "Must match current version (optimistic locking)",
+                        "example": 1
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "Connection timeout in seconds"
+                    }
+                }
+            },
+            "KeystoreSecretView": {
+                "type": "object",
+                "required": [
+                    "key",
+                    "version",
+                    "value",
+                    "createdAt",
+                    "updatedAt",
+                    "createdBy",
+                    "updatedBy"
+                ],
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "description": "Path-style key",
+                        "example": "/db/password"
+                    },
+                    "version": {
+                        "type": "integer",
+                        "format": "int64",
+                        "minimum": 1,
+                        "example": 1
+                    },
+                    "value": {
+                        "type": "string",
+                        "description": "Always masked — never returns the real value",
+                        "enum": [
+                            "*****"
+                        ],
+                        "example": "*****"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "Production database password"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-05-19T10:00:00Z"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-05-19T10:00:00Z"
+                    },
+                    "createdBy": {
+                        "type": "string",
+                        "example": "admin"
+                    },
+                    "updatedBy": {
+                        "type": "string",
+                        "example": "admin"
+                    }
+                }
+            },
+            "KeystoreNewSecretCommand": {
+                "type": "object",
+                "required": [
+                    "key",
+                    "value"
+                ],
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "pattern": "^(/[a-zA-Z0-9_.\\-]+)+$",
+                        "description": "Path-style key",
+                        "example": "/db/password"
+                    },
+                    "value": {
+                        "description": "Secret value — any valid JSON",
+                        "example": "s3cr3t!"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "Production database password"
+                    }
+                }
+            },
+            "KeystoreEditSecretCommand": {
+                "type": "object",
+                "required": [
+                    "value",
+                    "expectedVersion"
+                ],
+                "properties": {
+                    "value": {
+                        "description": "New secret value — any valid JSON",
+                        "example": "n3w-s3cr3t!"
+                    },
+                    "expectedVersion": {
+                        "type": "integer",
+                        "format": "int64",
+                        "minimum": 1,
+                        "description": "Must match current version (optimistic locking)",
+                        "example": 1
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "Production database password"
+                    }
+                }
+            },
+            "KeystoreApplicationConfig": {
+                "type": "object",
+                "description": "Full runtime application configuration. Shape depends on deployment.",
+                "additionalProperties": true
             }
         },
         "responses": {
@@ -10342,6 +11093,25 @@
                         }
                     }
                 }
+            },
+            "Conflict": {
+                "description": "Conflict — key already exists or version mismatch",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "code": {
+                                    "type": "integer",
+                                    "example": 409
+                                },
+                                "message": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "parameters": {
@@ -10375,6 +11145,27 @@
                 "required": true,
                 "schema": {
                     "type": "string"
+                }
+            },
+            "KeystoreKeyParam": {
+                "name": "key",
+                "in": "path",
+                "required": true,
+                "description": "Path-style key in the format `/segment1/segment2/...`.\nEach segment may contain `[a-zA-Z0-9_.-]` characters.\nExample: `/service/api-key`\n",
+                "schema": {
+                    "type": "string",
+                    "pattern": "^(/[a-zA-Z0-9_.\\-]+)+$",
+                    "example": "/service/api-key"
+                }
+            },
+            "KeystorePrefixParam": {
+                "name": "prefix",
+                "in": "query",
+                "required": false,
+                "description": "Filter results to keys that start with this prefix.\nExample: `/service` returns `/service/api-key` and `/service/db/host`.\n",
+                "schema": {
+                    "type": "string",
+                    "example": "/service"
                 }
             }
         },

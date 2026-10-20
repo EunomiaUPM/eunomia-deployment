@@ -1,0 +1,112 @@
+name: ${EUNOMIA_PREFIX:-eunomia}-authority
+
+services:
+  heimdall-db:
+    container_name: "${EUNOMIA_PREFIX:-eunomia}-authority-heimdall-db"
+    image: postgres:18
+    restart: always
+    env_file:
+      - ./../../static/envs/heimdall/db.env.example
+    ports:
+      - "${EUNOMIA_AUTHORITY_DB_PORT:-1450}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U standalone_heimdall"]
+      interval: 10s
+      retries: 10
+
+  # =========================
+  # Fafnir wallet
+  # =========================
+  heimdall-fafnir-setup:
+    container_name: "${EUNOMIA_PREFIX:-eunomia}-authority-fafnir-setup"
+    image: "${FAFNIR_IMAGE:?set FAFNIR_IMAGE in versions.env}:${FAFNIR_TAG:?set FAFNIR_TAG in versions.env}"
+    platform: linux/amd64
+    restart: "no"
+    depends_on:
+      heimdall-db:
+        condition: service_healthy
+    volumes:
+      - ./../../static/config/heimdall/standalone/fafnir.heimdall.yaml:/app/static/fafnir/config.yaml
+      - ./../../vault/heimdall/secrets/db.json.example:/app/vault/secrets/db.json.example
+    env_file:
+      - ./../../static/envs/heimdall/fafnir.env.example
+    environment:
+      RUST_BACKTRACE: 1
+    command: ["setup", "--env-file", "/app/static/fafnir/config.yaml"]
+
+  heimdall-fafnir-wallet:
+    container_name: "${EUNOMIA_PREFIX:-eunomia}-authority-fafnir-wallet"
+    image: "${FAFNIR_IMAGE:?set FAFNIR_IMAGE in versions.env}:${FAFNIR_TAG:?set FAFNIR_TAG in versions.env}"
+    platform: linux/amd64
+    restart: always
+    depends_on:
+      heimdall-fafnir-setup:
+        condition: service_completed_successfully
+    volumes:
+      - ./../../static/config/heimdall/standalone/fafnir.heimdall.yaml:/app/static/fafnir/config.yaml
+      - ./../../vault/heimdall/secrets/db.json.example:/app/vault/secrets/db.json.example
+    env_file:
+      - ./../../static/envs/heimdall/fafnir.env.example
+    environment:
+      RUST_BACKTRACE: 1
+    command: ["start", "--env-file", "/app/static/fafnir/config.yaml"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7001/readiness"]
+      interval: 10s
+      timeout: 2s
+      retries: 10
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  heimdall-setup:
+    container_name: "${EUNOMIA_PREFIX:-eunomia}-authority-heimdall-setup"
+    image: "${HEIMDALL_IMAGE:?set HEIMDALL_IMAGE in versions.env}:${HEIMDALL_TAG:?set HEIMDALL_TAG in versions.env}"
+    platform: linux/amd64
+    volumes:
+      - ./../../static/config/heimdall/standalone:/app/static/config
+      - ./../../static/specs/heimdall:/app/static/specs
+      - ./../../vault/heimdall:/app/vault
+    depends_on:
+      heimdall-db:
+        condition: service_healthy
+    env_file:
+      - ./../../static/envs/heimdall/heimdall.env.example
+    environment:
+      RUST_BACKTRACE: 1
+    command:
+      - setup
+      - --env-file
+      - /app/static/config/standalone.eco_authority.yaml
+    restart: "no"
+
+  heimdall:
+    container_name: "${EUNOMIA_PREFIX:-eunomia}-authority-heimdall"
+    image: "${HEIMDALL_IMAGE:?set HEIMDALL_IMAGE in versions.env}:${HEIMDALL_TAG:?set HEIMDALL_TAG in versions.env}"
+    platform: linux/amd64
+    restart: always
+    ports:
+      - "1500:1500"
+    volumes:
+      - ./../../static/config/heimdall/standalone:/app/static/config
+      - ./../../static/specs/heimdall:/app/static/specs
+      - ./../../vault/heimdall:/app/vault
+    depends_on:
+      heimdall-setup:
+        condition: service_completed_successfully
+      heimdall-fafnir-wallet:
+        condition: service_healthy
+    env_file:
+      - ./../../static/envs/heimdall/heimdall.env.example
+    environment:
+      RUST_BACKTRACE: 1
+    command:
+      - start
+      - --env-file
+      - /app/static/config/standalone.eco_authority.yaml
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:1500/readiness"]
+      interval: 10s
+      timeout: 2s
+      retries: 10
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
