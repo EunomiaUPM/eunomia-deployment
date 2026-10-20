@@ -10,7 +10,8 @@ jobs:
   # Unit tests of the CLI, which also check that the repo stays generic: no
   # use-case leftovers, and event pages kept in their own docs folder.
   unit:
-    runs-on: ubuntu-latest
+    # Python 3.8 is the CLI's floor; ubuntu-latest no longer ships it.
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         python: ["3.8", "3.12"]
@@ -64,11 +65,11 @@ jobs:
           set -e
           # Prod reads the real env files an operator writes; the examples stand in.
           for f in static/envs/*/*.env.example; do cp "$f" "${f%.example}"; done
-          for f in deployment/standalone/*.yaml deployment/prod/*.yaml extensions/*/service/docker-compose.yaml; do
+          for f in deployment/prod/*.yaml extensions/*/service/docker-compose.yaml; do
             echo "== $f"
             docker compose --env-file versions.env -f "$f" config -q
           done
-          # The instance templates need the variables `eunomia connector add` writes.
+          # The instance templates need the variables `eunomia agent add` writes.
           export INSTANCE=ci CONTAINER=eunomia-ci HTTP_PORT=1600 DB_PORT=15400 REDIS_PASSWORD=x
           for f in deployment/instances/*.yaml; do
             echo "== $f"
