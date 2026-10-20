@@ -1,0 +1,71 @@
+---
+title: "Protocols"
+description: "The open protocols EUNOMIA speaks, what each one is for, and where it shows up in an exchange."
+---
+
+| Protocol | For | Spoken by |
+| --- | --- | --- |
+| [Dataspace Protocol](https://docs.internationaldataspaces.org/ids-knowledgebase/v/dataspace-protocol) 2025-1 | catalogs, contract negotiation, transfer processes | agents, between each other |
+| [DCAT 3](https://www.w3.org/TR/vocab-dcat-3/) | describing datasets, distributions and data services | the provider's catalog |
+| [ODRL](https://www.w3.org/TR/odrl-model/) | usage policies: permissions, prohibitions, obligations, constraints | catalog offers and agreements |
+| [GNAP](https://datatracker.ietf.org/doc/rfc9635/) | authorisation grants between participants | agents and the authority |
+| [OID4VCI](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html) | issuing credentials | the authority (issuer) and wallets (holders) |
+| [OID4VP](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) | presenting credentials | wallets (holders), the authority and providers (verifiers) |
+| [W3C Verifiable Credentials](https://www.w3.org/TR/vc-data-model/), [DIDs](https://www.w3.org/TR/did-core/) | identity and claims | everyone |
+| [HTTP Message Signatures](https://www.rfc-editor.org/rfc/rfc9421) | binding GNAP clients to their keys | agents and the authority |
+
+## Dataspace Protocol
+
+DSP defines three state machines between a consumer and a provider. EUNOMIA's agents expose them under `/dsp/current`, and an RPC layer (`…/rpc/setup-*`) that lets you drive each transition from the side that owns it.
+
+### Catalog
+
+A single request: the consumer asks, the provider answers with its DCAT catalog. Each dataset carries its ODRL offers (`hasPolicy`) and its distributions, and the answer carries the provider's DSP address.
+
+### Contract negotiation
+
+| # | Who | Transition | State |
+| --- | --- | --- | --- |
+| 1 | consumer | requests, with an offer from the catalog | `REQUESTED` |
+| 2 | provider | offers | `OFFERED` |
+| 3 | consumer | requests again | `REQUESTED` |
+| 4 | provider | offers the final terms | `OFFERED` |
+| 5 | consumer | accepts | `ACCEPTED` |
+| 6 | provider | agrees | `AGREED` |
+| 7 | consumer | verifies | `VERIFIED` |
+| 8 | provider | finalizes, minting the agreement | `FINALIZED` |
+
+The consumer sends the offer exactly as the catalog advertises it. The agreement id at the end is what transfers refer to.
+
+### Transfer process
+
+`REQUESTED` → `STARTED` → (`SUSPENDED` → `STARTED`)* → `COMPLETED`. The consumer requests a transfer under an agreement, in a format the dataset offers (`HTTP_PULL`, `HTTP_PUSH`); the provider starts it and hands over a data address. Either side can suspend and resume it; completing it closes the data plane. See [Data plane](/docs/architecture/data-plane).
+
+## ODRL
+
+Policies are attached to datasets in the provider's catalog. A policy has permissions, prohibitions and obligations, each with constraints. For example, the demo's commercial licence:
+
+```json
+{
+  "permission": [{
+    "action": "use",
+    "constraint": [
+      { "leftOperand": "dateTime", "operator": "gteq", "rightOperand": "2026-01-01T00:00:00Z" },
+      { "leftOperand": "dateTime", "operator": "lteq", "rightOperand": "2030-12-31T23:59:59Z" },
+      { "leftOperand": "purpose", "operator": "isA", "rightOperand": "commercial" }
+    ]
+  }],
+  "obligation": [{ "action": "attribut", "constraint": [{ "leftOperand": "recipient", "operator": "isA", "rightOperand": "public" }] }],
+  "prohibition": [{ "action": "derive", "constraint": [] }]
+}
+```
+
+Policies can also be instantiated from templates (`static/policy_templates/`) with parameters. The demo catalog has one of each: see [The demo factory](/docs/components/demo-factory#in-the-catalog).
+
+## GNAP
+
+Before any DSP call, a consumer obtains a grant from the provider: `POST /api/v1/peer-connection/connect` on the consumer opens it against the provider's `/api/v1/gate/access`. The provider requests a credential presentation, verifies it against what it requires, and approves the grant with an access token, which the consumer then attaches to its DSP requests. The same mechanism protects the authority's issuance endpoints.
+
+## OID4VCI and OID4VP
+
+Credential issuance is a pre-authorised OID4VCI flow: the authority returns a `openid-credential-offer://` URI, the participant's wallet resolves it, proves possession of its DID key and stores the credential. Presentations follow OID4VP: the verifier returns an `openid4vp://authorize` request with a presentation definition, the wallet matches credentials against it and posts the presentation. In EUNOMIA both happen automatically when the request is filed with `"auto": true`.

@@ -1,0 +1,9 @@
+{
+  "title": "Deployment",
+  "pages": [
+    "standalone",
+    "instances",
+    "configuration",
+    "production"
+  ]
+}

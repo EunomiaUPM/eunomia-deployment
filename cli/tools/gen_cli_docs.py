@@ -1,4 +1,4 @@
-"""Regenerate docs-internal/reference/cli.md from the parser's own help.
+"""Regenerate docs/content/docs/cli/reference.mdx from the parser's own help.
 
     python3 cli/tools/gen_cli_docs.py
 """
@@ -14,16 +14,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from eunomia.cli import build_parser  # noqa: E402
 
-OUT = Path(__file__).resolve().parents[2] / "docs-internal" / "reference" / "cli.md"
+OUT = Path(__file__).resolve().parents[2] / "docs" / "content" / "docs" / "cli" / "reference.mdx"
 
 HEADER = """---
-title: CLI reference
-description: Every eunomia command and its options, generated from the CLI's own help.
+title: "Reference"
+description: "Every eunomia command and its options, generated from the CLI's own help."
 ---
 
-Run it as `./eunomia <command>` (macOS, Linux) or `.\\eunomia.cmd <command>` (Windows), or `eunomia` after `pip install -e .`. Every command takes `--help`.
+Run it as `./eunomia <command>` (macOS, Linux) or `.\\eunomia.cmd <command>` (Windows), or `eunomia` after `pip install -e .`. Every command takes `--help`. For the commands in context, see [Workflows](/docs/cli/workflows).
 
-This page is generated: `python3 cli/tools/gen_cli_docs.py`.
+<Callout type="info">This page is generated from the CLI itself: `python3 cli/tools/gen_cli_docs.py`. CI fails when it is out of date.</Callout>
 """
 
 

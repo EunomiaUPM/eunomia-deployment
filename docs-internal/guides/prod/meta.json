@@ -1,9 +1,0 @@
-{
-  "title": "Production",
-  "pages": [
-    "index",
-    "heimdall",
-    "agent",
-    "automated-deployment"
-  ]
-}

@@ -1,0 +1,169 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+@import 'fumadocs-openapi/css/preset.css';
+
+@source '../node_modules/fumadocs-openapi/dist/**/*.js';
+
+/* ------------------------------------------------------------------ */
+/* Brand                                                               */
+/*   indigo #24234C, sky #9DD5F2, mist #EEF4F8 (from the EUNOMIA logo) */
+/*   plus an electric violet → magenta for accents                     */
+/* ------------------------------------------------------------------ */
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-brand-indigo: #24234c;
+  --color-brand-sky: #9dd5f2;
+  --color-brand-mist: #eef4f8;
+  --color-brand-violet: #8b6cff;
+  --color-brand-magenta: #e86cf0;
+  --color-brand-night: #07071a;
+
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-float: float 9s ease-in-out infinite;
+
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50% { transform: translate3d(0, -18px, 0); }
+  }
+}
+
+/* Light: mist paper, indigo ink */
+@theme {
+  --color-fd-background: hsl(210, 40%, 98%);
+  --color-fd-foreground: hsl(242, 37%, 15%);
+  --color-fd-muted: hsl(220, 33%, 95%);
+  --color-fd-muted-foreground: hsl(240, 12%, 40%);
+  --color-fd-popover: hsl(0, 0%, 100%);
+  --color-fd-popover-foreground: hsl(242, 37%, 15%);
+  --color-fd-card: hsl(0, 0%, 100%);
+  --color-fd-card-foreground: hsl(242, 37%, 15%);
+  --color-fd-border: hsla(240, 25%, 50%, 0.18);
+  --color-fd-primary: hsl(252, 85%, 58%);
+  --color-fd-primary-foreground: hsl(0, 0%, 100%);
+  --color-fd-secondary: hsl(222, 40%, 94%);
+  --color-fd-secondary-foreground: hsl(242, 37%, 15%);
+  --color-fd-accent: hsl(252, 80%, 95%);
+  --color-fd-accent-foreground: hsl(252, 70%, 35%);
+  --color-fd-ring: hsl(252, 85%, 58%);
+}
+
+/* Dark: night indigo, sky ink, violet accent */
+.dark {
+  --color-fd-background: hsl(242, 55%, 6%);
+  --color-fd-foreground: hsl(210, 40%, 94%);
+  --color-fd-muted: hsl(242, 35%, 11%);
+  --color-fd-muted-foreground: hsl(220, 20%, 68%);
+  --color-fd-popover: hsl(242, 45%, 8%);
+  --color-fd-popover-foreground: hsl(210, 40%, 94%);
+  --color-fd-card: hsl(242, 40%, 9%);
+  --color-fd-card-foreground: hsl(210, 40%, 96%);
+  --color-fd-border: hsla(220, 60%, 80%, 0.12);
+  --color-fd-primary: hsl(200, 75%, 78%);
+  --color-fd-primary-foreground: hsl(242, 55%, 8%);
+  --color-fd-secondary: hsl(242, 32%, 14%);
+  --color-fd-secondary-foreground: hsl(210, 40%, 94%);
+  --color-fd-accent: hsla(252, 70%, 60%, 0.16);
+  --color-fd-accent-foreground: hsl(252, 100%, 88%);
+  --color-fd-ring: hsl(252, 90%, 70%);
+}
+
+.dark #nd-sidebar {
+  --color-fd-muted: hsl(242, 35%, 12%);
+  --color-fd-secondary: hsl(242, 32%, 15%);
+  --color-fd-muted-foreground: hsl(220, 20%, 72%);
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+html > body[data-scroll-locked] {
+  margin-right: 0px !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Landing utilities                                                   */
+/* ------------------------------------------------------------------ */
+
+/* The gradient starts in sky blue on dark, in the logo's deep blue on light */
+:root {
+  --gradient-start: #2b86c5;
+  --gradient-mid: #6d4dff;
+  --gradient-end: #d24ee0;
+}
+.dark {
+  --gradient-start: var(--color-brand-sky);
+  --gradient-mid: var(--color-brand-violet);
+  --gradient-end: var(--color-brand-magenta);
+}
+
+@utility text-gradient {
+  background-image: linear-gradient(100deg, var(--gradient-start) 0%, var(--gradient-mid) 45%, var(--gradient-end) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility bg-gradient-brand {
+  background-image: linear-gradient(100deg, var(--color-brand-sky) 0%, var(--color-brand-violet) 50%, var(--color-brand-magenta) 100%);
+}
+
+/* A dotted field that fades towards the edges */
+@utility bg-dots {
+  background-image: radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--color-fd-foreground) 18%, transparent) 1px, transparent 0);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+}
+
+/* A faint engineering grid */
+@utility bg-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--color-fd-foreground) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--color-fd-foreground) 7%, transparent) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(to bottom, black, transparent 85%);
+}
+
+/* A card whose border lights up with the brand gradient */
+@utility card-glow {
+  position: relative;
+  border-radius: 1rem;
+  border: 1px solid var(--color-fd-border);
+  background: color-mix(in oklab, var(--color-fd-card) 85%, transparent);
+  transition: border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+  &:hover {
+    border-color: color-mix(in oklab, var(--color-brand-violet) 55%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-brand-violet) 25%, transparent),
+      0 20px 60px -30px color-mix(in oklab, var(--color-brand-violet) 60%, transparent);
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee,
+  .animate-float {
+    animation: none !important;
+  }
+}
+
+/* Terminal lines appear one by one */
+.terminal-line {
+  opacity: 0;
+  animation: terminal-in 0.35s ease-out forwards;
+}
+@keyframes terminal-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .terminal-line { opacity: 1; animation: none; }
+}

@@ -1,0 +1,49 @@
+---
+title: "API reference"
+description: "The HTTP APIs of the agent, the authority and the demo factory, generated from their OpenAPI specs."
+---
+
+<Cards>
+  <Card title="Agent" href="/docs/api/agent/catalogs" description="DS-Agent: catalog, connectors, negotiations, transfers, credentials, peers, the Dataspace Protocol." />
+  <Card title="Authority" href="/docs/api/authority/issuer" description="Heimdall: issuer, verifier, gatekeeper, approver, wallet." />
+  <Card title="Demo factory" href="/docs/api/demo-factory/robots" description="Robots, measures and subscriptions." />
+</Cards>
+
+These pages are generated from the specs in the repository, `npm run generate:api` in `docs/`:
+
+| Component | Spec |
+| --- | --- |
+| DS-Agent | [`static/specs/agent/openapi/merged_openapi.json`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/specs/agent/openapi/merged_openapi.json), and one file per module next to it |
+| Heimdall | [`static/specs/heimdall/openapi/openapi.json`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/specs/heimdall/openapi/openapi.json) |
+| Demo factory | [`services/demo-factory/specs/openapi/robots.yaml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/services/demo-factory/specs/openapi/robots.yaml), also served at `http://127.0.0.1:1210/docs` |
+
+## Base URLs
+
+| | From your machine | From a container |
+| --- | --- | --- |
+| Authority | `http://127.0.0.1:1500` | `http://host.docker.internal:1500` |
+| Provider | `http://127.0.0.1:1200` | `http://host.docker.internal:1200` |
+| Consumer | `http://127.0.0.1:1100` | `http://host.docker.internal:1100` |
+| Demo factory | `http://127.0.0.1:1210` (pull), `:1220` (push) | `http://host.docker.internal:1210`, `:1220` |
+
+Management routes are under `/api/v1`, Dataspace Protocol routes under `/dsp/current`. The addresses the agents put in DSP and GNAP messages must be the container ones.
+
+## The calls you need most
+
+| What | Call | Where |
+| --- | --- | --- |
+| Is it up | `GET /api/v1/readiness` (`/readiness` on the authority) | any |
+| Own DID | `GET /.well-known/did.json` or `GET /api/v1/mates/myself` | any |
+| Known participants and tokens | `GET /api/v1/mates/all` | agent |
+| Link the wallet | `POST /api/v1/wallet/link` | any |
+| Ask for a credential | `POST /api/v1/vc-request/beg` | agent |
+| Credential requests | `GET /api/v1/vc-request/all` | agent |
+| Gaia-X self-attested VCs | `POST /api/v1/gaia/generate` | consumer |
+| Connect to a provider | `POST /api/v1/peer-connection/connect` | consumer |
+| Catalog of a provider | `POST /dsp/current/catalog/rpc/setup-catalog-request` | consumer |
+| Negotiation steps | `POST /dsp/current/negotiations/rpc/<step>` | both |
+| Transfer steps | `POST /dsp/current/transfers/rpc/<step>` | both |
+| Datasets, distributions, policies | `/api/v1/catalog-agent/...` | provider |
+| Connector templates and instances | `/api/v1/connector/...` | provider |
+
+[Onboarding](/docs/architecture/onboarding) shows the bodies of the onboarding calls and [Exchanging data](/docs/guides/data-exchange) those of the catalog, negotiation and transfer calls. `./eunomia e2e -v` prints every request and response it sends.

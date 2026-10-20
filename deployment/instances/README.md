@@ -2,4 +2,4 @@
 
 Compose templates for `eunomia connector add` and `eunomia authority add`. The CLI fills them in; they are not meant to be run by hand.
 
-See [docs-internal/guides/instances.md](../../docs-internal/guides/instances.md).
+See [Extra participants](https://eunomiaupm.github.io/eunomia-deployment/docs/deployment/instances).

@@ -1,0 +1,88 @@
+---
+title: "Workflows"
+description: "The eunomia commands in the order you use them, task by task."
+---
+
+## First run
+
+```bash
+./eunomia doctor          # Docker, Compose v2, free ports, versions.env
+./eunomia up              # start, onboard, populate the catalog
+./eunomia e2e             # prove it end to end
+```
+
+`doctor --images` also checks that every pinned image can be pulled, which is worth doing before an event or on a slow network.
+
+## Day to day
+
+```bash
+./eunomia status          # every node: containers, health, readiness
+./eunomia logs provider -f
+./eunomia stop            # keep data and identities
+./eunomia up              # start again; skips what is already done
+```
+
+After `git pull`, `./eunomia up` applies the changes: new images, configuration, catalog. `--build` rebuilds the demo factory.
+
+## Start over
+
+```bash
+./eunomia down --dry-run  # what it would remove
+./eunomia down --yes      # containers, volumes and generated identities
+./eunomia up
+```
+
+`down --keep-identities` keeps the generated keys, so the participants keep their DIDs.
+
+## Use the data
+
+```bash
+./eunomia demo robots | jq '.[0]'     # pull through the data space
+./eunomia demo events --count 10      # watch the pushed events
+TOKEN=$(./eunomia demo token)         # call the factory directly, as the provider does
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:1210/robots/
+./eunomia catalog show                # what the provider offers
+./eunomia e2e --keep-open             # leave a pull transfer open and print its URL
+./eunomia e2e -v                      # every request and response
+```
+
+## Repair a step
+
+```bash
+./eunomia onboard wallets
+./eunomia onboard register provider
+./eunomia onboard gaia
+./eunomia onboard connect
+./eunomia catalog populate --force
+```
+
+## More participants
+
+```bash
+./eunomia connector add seller --role provider --onboard
+./eunomia connector add buyer --onboard
+./eunomia gaia --consumer buyer --provider seller
+./eunomia catalog populate --provider seller
+./eunomia e2e --consumer buyer --provider seller
+
+./eunomia authority add my-auth
+./eunomia register buyer --authority my-auth
+
+./eunomia instances
+./eunomia rm seller --yes
+```
+
+See [Extra participants](/docs/deployment/instances).
+
+## Production
+
+```bash
+./eunomia up authority --env prod     # on each server, its own node
+./eunomia onboard --env prod          # from anywhere that reaches the three URLs
+./eunomia catalog populate --env prod
+./eunomia e2e --env prod
+./eunomia restart provider --dry-run  # restart over SSH
+./eunomia images --env prod --check   # newer tags in the registries
+```
+
+See [Production](/docs/deployment/production).

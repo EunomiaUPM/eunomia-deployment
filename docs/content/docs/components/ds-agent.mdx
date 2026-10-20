@@ -1,0 +1,94 @@
+---
+title: "DS-Agent"
+description: "The dataspace agent. One Rust binary that is a provider, a consumer or both, speaking the Dataspace Protocol."
+---
+
+[DS-Agent](https://github.com/EunomiaUPM/ds-agent) is what a participant runs to take part in the data space. As a **provider** it publishes a catalog, negotiates contracts and serves data through its data plane; as a **consumer** it browses catalogs, negotiates and receives. One configuration can be both.
+
+## What it does
+
+- **SSI authentication**: links its wallet, requests credentials from authorities, and opens and approves GNAP grants with peers, checking the credentials it requires.
+- **Catalog**: a DCAT 3 catalog of datasets, data services and distributions, with ODRL policies and policy templates, served over the Dataspace Protocol catalog API.
+- **Contract negotiation**: the full DSP negotiation state machine, from both sides.
+- **Transfers**: the DSP transfer process, and the data plane that runs it: an HTTP proxy for pull, an ingress for push, driven by connector templates and instances.
+- **Admin console**: a web UI at `/admin/login` (in standalone: `eunomia` / `eunomia`) to do all of the above by hand.
+
+## Inside
+
+The agent is a Rust workspace; the `monolith` crate builds the binary that runs every module in one process.
+
+| Crate | Responsibility |
+| --- | --- |
+| `monolith` | the binary: `setup` and `start`, routing every module |
+| `common` | shared types, configuration, errors |
+| `auth` | wallet link, credential requests, GNAP peer connections, mates |
+| `catalog-agent` | DCAT catalog, datasets, distributions, data services, ODRL policies and templates |
+| `negotiation-agent` | DSP contract negotiation |
+| `transfer-agent` | DSP transfer processes |
+| `dataplane` | the data plane: proxy for pull, ingress for push |
+| `connector` | connector templates and instances, the bridge to backends |
+| `keystore` | keys |
+| `events` | events between modules |
+| `bff` | the gateway the admin console talks to |
+
+It is built on [Ymir](/docs/components/ymir) for its identity and protocol types, and talks to its [Fafnir](/docs/components/fafnir) wallet over HTTP.
+
+## Running it
+
+The image takes two commands, each with the configuration file:
+
+```yaml
+provider-setup:
+  image: "${EUNOMIA_IMAGE}:${EUNOMIA_TAG}"
+  command: ["setup", "-e", "/app/static/config/standalone.provider.yaml"]   # migrations, identity material
+provider:
+  image: "${EUNOMIA_IMAGE}:${EUNOMIA_TAG}"
+  command: ["start", "-e", "/app/static/config/standalone.provider.yaml"]   # serve
+```
+
+That is the `<role>-setup` job and the `<role>` service of the compose files. It also reads the env file `static/envs/<role>/core.env.example`, which points it at its vault and the secret files in it.
+
+| Needs | Standalone |
+| --- | --- |
+| PostgreSQL | `provider-db` / `consumer-db` |
+| Redis (cache) | `provider-redis` / `consumer-redis` |
+| A Fafnir wallet | `provider-fafnir-wallet` / `consumer-fafnir-wallet` |
+| A vault | `vault/<role>/`, file based |
+| OpenAPI specs | `static/specs/agent/`, mounted at `/app/static/specs` |
+| Policy templates | `static/policy_templates/` |
+
+## Configuration
+
+One YAML file, with YAML anchors to share the common blocks. The standalone ones are [`standalone.provider.yaml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/config/provider/standalone/standalone.provider.yaml) and [`standalone.consumer.yaml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/config/consumer/standalone/standalone.consumer.yaml).
+
+<TypeTable
+  type={{
+    'hosts.http': { type: 'protocol, url, port', description: 'The address the agent advertises to its peers. Standalone: http://host.docker.internal:1200.' },
+    'common.db': { type: 'db_type, url, port', description: 'Its PostgreSQL, by compose service name.' },
+    'common.connection': { type: 'is_prod, is_vault_real, has_tls_proxy', description: 'Production switches: real Vault, TLS terminated by a proxy.' },
+    'cache': { type: 'Redis', description: 'Its Redis, for the catalog and transfer caches.' },
+    'catalog': { type: 'object', description: 'Catalog module: policy templates folder, optional datahub.' },
+    'ssi_auth.wallet_config': { type: 'Fafnir | WaltId', description: 'Which wallet, and where it listens.' },
+    'ssi_auth.client_config.class_id': { type: 'Provider | Consumer', description: 'The role the agent presents itself with.' },
+    'ssi_auth.verify_req_config.vcs_requested': { type: 'string[]', description: 'Credentials a peer must present to connect. Standalone provider: gx:labelcredential.' },
+    'ssi_auth.did_config.type': { type: 'Jwk | Web', description: 'DID method. did:web also takes domain, path and port.' },
+    'ssi_auth.gaia_config': { type: 'object | null', description: 'The Gaia-X legal person the agent declares in its self-description.' },
+    'contracts, transfer, gateway': { type: 'object', description: 'The other modules, each with the addresses of the ones it calls.' },
+  }}
+/>
+
+## API
+
+| Prefix | What |
+| --- | --- |
+| `/api/v1/...` | management: wallet, credentials, peer connections, mates, catalog, connectors, negotiations, transfers |
+| `/dsp/current/...` | the Dataspace Protocol, and its RPC layer `…/rpc/setup-*` |
+| `/dataplane/...` | the data plane |
+| `/.well-known/did.json`, `/.well-known/dspace-version` | discovery |
+| `/admin/...` | the console |
+
+The full spec is in [API reference → Agent](/docs/api). The calls you need most are in [Onboarding](/docs/architecture/onboarding) and [Exchanging data](/docs/guides/data-exchange).
+
+## Health
+
+`GET /api/v1/readiness` answers 200 once the agent is up; the compose healthcheck and `eunomia status` use it.

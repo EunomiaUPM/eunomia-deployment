@@ -1,0 +1,37 @@
+---
+title: "Ymir"
+description: "The shared core crate every EUNOMIA node is built on: the GNAP and SSI type system, the wallet abstraction and the cryptography."
+---
+
+[Ymir](https://github.com/EunomiaUPM/ymir) is a Rust library, not a service: DS-Agent, Heimdall and Fafnir all build on it, which is how they speak the same protocols the same way. You only meet it if you write Rust against EUNOMIA.
+
+## Three layers
+
+1. **Data**: SeaORM entities, migrations and repository traits. The schema has four namespaces: `sent` (grants this node started), `received` (grants it handles for a peer), `shared` (participants, resource requests, issuances) and `wallet` (DIDs, keys, credentials).
+2. **Services**: primitive operations behind traits (persistence, issuance, verification, wallet, vault, HTTP client), with concrete implementations such as the PostgreSQL repository and the Fafnir wallet adapter.
+3. **Modules**: orchestrators that compose services into protocol flows. Ymir ships the base ones; the nodes add theirs (peer connector, credential requester, gatekeeper…).
+
+A family of `Has*` traits (`HasRepo`, `HasWallet`, `HasVerifier`…) is the dependency-injection contract between modules and services.
+
+## What it defines
+
+| Area | Contents |
+| --- | --- |
+| GNAP | grant request and response, access and continuation tokens, interaction callbacks, statuses |
+| Identity | DID documents (`did:web`, `did:jwk`), JWKs and key proofs, JWT and JWS helpers |
+| Credentials | W3C VCs and VPs in JWT envelopes, OID4VCI issuance plans, OID4VP presentation definitions |
+| Wallet | `WalletTrait`, with the Fafnir adapter (default) and a legacy walt.id one |
+| Cryptography | JWS signing and verification (Ed25519, RSA), DID resolution, HTTP Message Signatures for GNAP client binding, SHA-256 content digests, RFC 8785 JSON canonicalisation |
+
+All of it is pure Rust (RustCrypto, rustls): no OpenSSL dependency.
+
+## The Plan pattern
+
+Every entity has a `Plan` (an intent, not yet stored) and a `Model` (stored, with identity and timestamps). Modules build plans and hand them to a repository:
+
+```rust
+let grant_plan = self.peer_connector().build_grant_plan(payload);
+let grant: grant::Model = self.repo().sent_grant().create(grant_plan).await?;
+```
+
+Building, testing and persisting stay separate concerns.

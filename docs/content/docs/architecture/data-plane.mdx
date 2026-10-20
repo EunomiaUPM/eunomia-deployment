@@ -1,0 +1,43 @@
+---
+title: "Data plane"
+description: "How bytes move once there is an agreement: pull through the provider's proxy, or push as events to the consumer's endpoint."
+---
+
+The control plane (catalog, contract, transfer process) decides **whether** data moves. The data plane moves it. In EUNOMIA it lives in the provider's agent, between the consumer and the data backend, so the provider stays in control of every byte and keeps the backend's credentials to itself.
+
+<Transfers />
+
+## Connectors
+
+What the data plane does for a distribution is described by a **connector**:
+
+- a **connector template** says how to talk to a kind of backend (pull or push, which HTTP calls, which authentication) and which parameters that needs;
+- a **connector instance** fills those parameters in for one distribution.
+
+Authentication to the backend can be `NO_AUTH`, `BEARER_TOKEN` with a fixed token, or `OAUTH2` (the demo uses the password grant, with the token fetched again when it expires). The demo factory uses OAuth2 against its Keycloak. See [Extending the deployment](/docs/guides/extending) to write your own.
+
+## Pull
+
+1. The consumer requests a transfer with `"format": "HTTP_PULL"`.
+2. The provider starts it and returns a data address on itself: `/dataplane/proxy/<transfer id>`.
+3. The consumer, or any application it hands the address to, `GET`s it. The provider calls the backend, adding the backend credentials, and streams the answer back.
+
+Suspend, resume and complete the transfer from either side as the protocol allows.
+
+## Push
+
+1. The consumer requests a transfer with `"format": "HTTP_PUSH"` and a `dataAddress` with the endpoint the events should reach:
+
+   ```json
+   { "endpointType": "HTTP", "endpoint": "https://my-app.example/events", "endpointProperties": [] }
+   ```
+
+2. When the provider starts the transfer, its push connector **subscribes** to the backend, giving it the provider's own ingress URL.
+3. Every event the backend posts goes backend → provider → consumer → that endpoint.
+4. Completing the transfer makes the provider **unsubscribe**.
+
+`./eunomia demo events` does exactly this with a small HTTP server of its own and prints the events as they arrive.
+
+## Proving the provider holds the keys
+
+`./eunomia e2e` checks the pull twice: the data comes through the proxy, **and** the same backend URL without a token answers `401`. Together that proves the consumer got the data without ever having the backend's credentials.

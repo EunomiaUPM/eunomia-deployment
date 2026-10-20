@@ -182,13 +182,37 @@ class Repo(unittest.TestCase):
 
     def test_hackathon_only_in_its_landing(self):
         pattern = re.compile(r"hackat|hackath", re.IGNORECASE)
-        # The docs root lists the folder so the site shows it; nothing else points there.
-        allowed = ("docs-internal/hackathon/", "docs-internal/meta.json", "PLAN.md", "cli/tests/test_cli.py")
+        allowed = (
+            "docs/lib/hackathon.ts",
+            "docs/components/hackathon/",
+            "docs/app/(home)/hackathon/",
+            # The home page shows the event banner, the one link towards it.
+            "docs/app/(home)/page.tsx",
+            # The site's maintainer notes say where those files are.
+            "docs/README.md",
+            "PLAN.md",
+            "cli/tests/test_cli.py",
+        )
         offenders = [
             rel for rel, text in _tracked_text_files() if not rel.startswith(allowed) and pattern.search(text + rel)
         ]
         self.assertEqual(offenders, [])
 
+    def test_docs_never_mention_the_event(self):
+        """The documentation is universal: the event lives on its own page."""
+        content = ROOT / "docs" / "content"
+        offenders = [
+            str(p.relative_to(ROOT)) for p in content.rglob("*") if p.is_file() and re.search(r"hackat", p.read_text(), re.IGNORECASE)
+        ]
+        self.assertEqual(offenders, [])
+
+    def test_cli_reference_is_up_to_date(self):
+        sys.path.insert(0, str(ROOT / "cli" / "tools"))
+        import gen_cli_docs
+
+        out = []
+        gen_cli_docs._walk(build_parser(), "", out)
+        self.assertEqual(gen_cli_docs.OUT.read_text(), gen_cli_docs.HEADER + "".join(out), "run: python3 cli/tools/gen_cli_docs.py")
 
 if __name__ == "__main__":
     unittest.main()

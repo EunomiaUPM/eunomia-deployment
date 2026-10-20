@@ -1,0 +1,10 @@
+{
+  "title": "Components",
+  "pages": [
+    "ds-agent",
+    "heimdall",
+    "fafnir",
+    "ymir",
+    "demo-factory"
+  ]
+}

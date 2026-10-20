@@ -1,0 +1,45 @@
+---
+title: "The eunomia CLI"
+description: "One command-line tool to start, onboard, test and inspect a data space, and to add participants to it."
+---
+
+`eunomia` drives everything in this repository: the compose stacks, the onboarding calls, the catalog, the end-to-end test and the extra participants. It checks the result of every step and says what to look at when one fails.
+
+## Running it
+
+| macOS, Linux | Windows |
+| --- | --- |
+| `./eunomia <command>` | `.\eunomia.cmd <command>` |
+
+The launcher uses the local **Python 3.8+** when there is one (standard library only, nothing to install). Without Python it builds a small image the first time, [`deployment/tools/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/deployment/tools), with Python and the Docker CLI, and runs the CLI inside it with this checkout mounted. So **Docker is the only requirement**. `EUNOMIA_CONTAINER=1` forces the container.
+
+To have `eunomia` on your `PATH`: `pip install -e .` from the repository root.
+
+Every command takes `--help`; the [reference](/docs/cli/reference) lists them all.
+
+## The commands at a glance
+
+| Group | Commands |
+| --- | --- |
+| Check | `doctor` |
+| The deployment | `up`, `stop`, `down`, `status`, `logs` |
+| Onboarding | `onboard [wallets\|register\|gaia\|connect]` |
+| Data | `catalog populate\|show`, `e2e`, `demo robots\|events\|token` |
+| More participants | `connector add`, `authority add`, `instances`, `start`, `rm`, `register`, `connect`, `gaia` |
+| Production and maintenance | `restart`, `images` |
+
+## Conventions
+
+- **Participants by name.** Wherever a command takes a participant, `authority`, `provider` and `consumer` are the standalone ones, and any other name is an [extra participant](/docs/deployment/instances).
+- **Idempotent.** `up`, `onboard` and `catalog populate` check first and skip what is done, so running them again is how you resume or update.
+- **Two environments.** `--env standalone` (the default) or `--env prod`.
+- **Settings** come from the shell and from `.env` at the repository root; standalone needs none. See [Configuration](/docs/deployment/configuration).
+- **Output.** Progress goes to stderr; data (`demo robots`, `demo token`, `catalog show`) goes to stdout, so it pipes cleanly.
+- **Exit codes.** `0` on success, `1` on a failed step (with the reason), `130` on Ctrl+C.
+
+## Next
+
+<Cards>
+  <Card title="Workflows" href="/docs/cli/workflows" description="The commands in the order you use them, for each task." />
+  <Card title="Reference" href="/docs/cli/reference" description="Every command and option." />
+</Cards>

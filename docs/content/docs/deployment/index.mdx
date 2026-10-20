@@ -1,0 +1,24 @@
+---
+title: "Deployment"
+description: "Two ways to run EUNOMIA: everything on one machine, or one participant per server."
+---
+
+| | Standalone | Production |
+| --- | --- | --- |
+| Where | one machine | one server per participant |
+| For | development, demos, workshops, CI | real data spaces |
+| Identities | `did:jwk` | `did:web` on each domain |
+| Secrets | file vault in `vault/` | HashiCorp Vault with TLS |
+| TLS | none | your certificates |
+| Authority console | open | behind Keycloak and oauth2-proxy |
+| Start with | `./eunomia up` | the [production guides](/docs/deployment/production) |
+| Compose files | `deployment/standalone/` | `deployment/prod/` |
+
+Both use the same images, pinned in `versions.env`, and the same CLI: `--env prod` switches it to production.
+
+<Cards>
+  <Card title="Standalone" href="/docs/deployment/standalone" description="Every participant and the demo factory on one machine." />
+  <Card title="Extra participants" href="/docs/deployment/instances" description="More connectors and authorities next to it, on free ports." />
+  <Card title="Configuration" href="/docs/deployment/configuration" description="versions.env, .env and the YAML files: what each controls." />
+  <Card title="Production" href="/docs/deployment/production" description="Domains, TLS, Vault and did:web, one server each." />
+</Cards>

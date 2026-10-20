@@ -1,0 +1,80 @@
+---
+title: "Quickstart"
+description: "From nothing to a negotiated contract and data flowing between two participants, in a few commands."
+---
+
+You need Docker running and this repository checked out. Nothing else: see [Requirements](/docs/requirements).
+
+| macOS, Linux | Windows |
+| --- | --- |
+| `./eunomia <command>` | `.\eunomia.cmd <command>` |
+
+Both take the same commands. The examples below use `./eunomia`.
+
+<Callout type="info">
+No Docker on this machine? [Open the repository in GitHub Codespaces](https://codespaces.new/EunomiaUPM/eunomia-deployment): it comes with Python and a Docker engine of its own, and runs `./eunomia doctor` when it opens. Then carry on from step 2.
+</Callout>
+
+## 1. Check your machine
+
+```bash
+./eunomia doctor
+```
+
+It checks Docker, Docker Compose v2, the ports the deployment uses and the image versions, and says what to fix when something is off.
+
+## 2. Start the dataspace
+
+```bash
+./eunomia up
+```
+
+The first run downloads the images, which takes a few minutes. Then `up`:
+
+1. Starts the **authority** (Heimdall), the **provider** and the **consumer**, each with its wallet and database, and the **demo factory** behind the provider.
+2. **Onboards** them: the provider and the consumer get a participant credential from the authority, the consumer gets its Gaia-X credentials, and the consumer connects to the provider.
+3. **Populates the provider catalog** with the factory's dataset, its policies and its connectors.
+
+It ends with the URLs:
+
+| What | URL | Login |
+| --- | --- | --- |
+| Authority | [http://127.0.0.1:1500/admin/home](http://127.0.0.1:1500/admin/home) | |
+| Provider | [http://127.0.0.1:1200/admin/login](http://127.0.0.1:1200/admin/login) | `eunomia` / `eunomia` |
+| Consumer | [http://127.0.0.1:1100/admin/login](http://127.0.0.1:1100/admin/login) | `eunomia` / `eunomia` |
+| Factory, robots (pull) | [http://127.0.0.1:1210/docs](http://127.0.0.1:1210/docs) | bearer token, see below |
+| Factory, robot events (push) | [http://127.0.0.1:1220/docs](http://127.0.0.1:1220/docs) | bearer token |
+| Factory Keycloak | [http://127.0.0.1:1230](http://127.0.0.1:1230) | `admin` / `admin` |
+
+Every step checks it worked and is skipped when already done, so `up` is also how you update: `git pull`, then `./eunomia up`.
+
+## 3. Exchange data
+
+```bash
+./eunomia e2e
+```
+
+The consumer asks for the provider's catalog, negotiates a contract over the factory dataset, pulls the robots through the provider and receives a robot event pushed through the dataspace. It ends with `END-TO-END TEST PASSED`.
+
+To see it as a consumer application would:
+
+```bash
+./eunomia demo robots    # the robots, pulled through the dataspace, as JSON
+./eunomia demo events    # the robot events, live, until Ctrl+C
+```
+
+[Exchanging data](/docs/guides/data-exchange) walks through what happens in each step, and how to do it from the consoles.
+
+## 4. Stop or start over
+
+```bash
+./eunomia stop     # stop everything, keep the data
+./eunomia up       # start again
+./eunomia down     # remove everything, identities included, to start from scratch
+```
+
+## Next
+
+- [Architecture](/docs/architecture): what each piece does.
+- [Extra participants](/docs/deployment/instances): more connectors and authorities, for example one each per team.
+- [Troubleshooting](/docs/troubleshooting) when something fails.

@@ -1,0 +1,74 @@
+---
+title: "Heimdall"
+description: "The authority. Onboards participants, issues and verifies their credentials, and guards access with GNAP."
+---
+
+[Heimdall](https://github.com/EunomiaUPM/heimdall) is the trust anchor of a data space: the participant that says who else is a participant. It issues verifiable credentials over OID4VCI, verifies presentations over OID4VP, decides grants over GNAP, and keeps track of the participants it has onboarded.
+
+## Modules
+
+| Module | Does |
+| --- | --- |
+| **Gatekeeper** | GNAP authorisation: every request to the authority starts as a grant at `/api/v1/gate/access` |
+| **Issuer** | OID4VCI issuance of the credentials its role allows |
+| **Verifier** | OID4VP verification of presentations |
+| **Approver** | approval of credential requests, automatic or by hand |
+| **Minion manager** | the participants the authority knows |
+| **Wallet** | its own keys and DID, through its Fafnir wallet |
+| **Admin UI** | a web console at `/admin/home` |
+
+## Roles
+
+What an authority issues depends on its role, set in its configuration (`role:`):
+
+| Role | Issues |
+| --- | --- |
+| `DataSpaceAuthority` | `DataSpaceParticipant`: membership of the data space |
+| Legal authority | legal identity: VAT ID, EORI, LEI, Tax ID, local registration numbers |
+| `EcoAuthority` | everything above, plus the Gaia-X clearing-house function that issues the label credential |
+
+The clearing-house and clearing-house-proxy roles exist in the code but are not implemented yet.
+
+The standalone authority runs as **EcoAuthority** ([`standalone.eco_authority.yaml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/config/heimdall/standalone/standalone.eco_authority.yaml)), so one container plays every role. That is convenient for development and demos; in a real ecosystem the legal, data space and clearing-house roles belong to different organisations. [`standalone.authority.yaml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/config/heimdall/standalone/standalone.authority.yaml) is the same with the data space role only, and `eunomia authority add --role dataspace` starts one.
+
+## Running it
+
+```yaml
+heimdall-setup:
+  image: "${HEIMDALL_IMAGE}:${HEIMDALL_TAG}"
+  command: ["setup", "--env-file", "/app/static/config/standalone.eco_authority.yaml"]
+heimdall:
+  image: "${HEIMDALL_IMAGE}:${HEIMDALL_TAG}"
+  command: ["start", "--env-file", "/app/static/config/standalone.eco_authority.yaml"]
+```
+
+It needs PostgreSQL (`heimdall-db`), its Fafnir wallet (`heimdall-fafnir-wallet`), a vault (`vault/heimdall/` in standalone), its OpenAPI spec (`static/specs/heimdall/`) and the env file `static/envs/heimdall/heimdall.env.example`. In production it also runs behind Keycloak and oauth2-proxy for the admin console: see [Authority in production](/docs/deployment/production/authority).
+
+## Configuration
+
+<TypeTable
+  type={{
+    'hosts_config.http': { type: 'protocol, url, port', description: 'The address it advertises. Standalone: http://host.docker.internal:1500.' },
+    'connection_config': { type: 'is_prod, is_vault_real, has_tls_proxy', description: 'Production switches.' },
+    'db_config': { type: 'db_type, url, port', description: 'Its PostgreSQL.' },
+    'wallet_config': { type: 'Fafnir', description: 'Its wallet and where it listens.' },
+    'did_config.type': { type: 'Jwk | Web', description: 'Its DID method.' },
+    'role': { type: 'DataSpaceAuthority | EcoAuthority | …', description: 'What it issues: see Roles.' },
+    'issue_config.ds_config.dataspace_id': { type: 'string', description: 'The data space it vouches for.' },
+    'issue_config.clh_config': { type: 'object', description: 'Gaia-X clearing house: label level, engine and rules versions, validated criteria.' },
+    'verify_req_config': { type: 'object', description: 'Whether certificates are accepted and auto-approved, and which credentials it asks presenters for.' },
+  }}
+/>
+
+## How issuance works
+
+1. A participant files a request with **its own** agent (`POST /api/v1/vc-request/beg`), naming the authority, the credential type and the method: `cert` (prove identity with the participant's certificate) or `oidc4vp` (present credentials it already holds).
+2. Its agent opens a GNAP grant at the authority's `/api/v1/gate/access`.
+3. The authority verifies the certificate or the presentation, approves the request (automatically with `"auto": true`) and returns an OID4VCI credential offer.
+4. The participant's wallet redeems the offer, proving possession of its DID key, and stores the credential. The request reaches `Finalized`.
+
+For `gx:VatId` the authority reads the VAT number from the `organizationIdentifier` of the participant's certificate: it must start with `VAT`, for example `VATES-123456789`.
+
+## API
+
+The spec is in [API reference → Authority](/docs/api). Readiness: `GET /readiness`. DID document: `GET /.well-known/did.json`. Issuer metadata: `GET /.well-known/openid-credential-issuer`.

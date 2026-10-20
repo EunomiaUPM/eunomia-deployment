@@ -53,7 +53,7 @@ def _docker(r: Report) -> bool:
 def _python(r: Report) -> None:
     v = sys.version_info
     if v < (3, 8):
-        r.bad(f"Python {v.major}.{v.minor}", "Python 3.8 or later is needed, or use the container: see docs-internal/getting-started/requirements.md")
+        r.bad(f"Python {v.major}.{v.minor}", "Python 3.8 or later is needed, or let ./eunomia run the CLI in its container: see the Requirements page of the docs")
     else:
         r.ok(f"Python {v.major}.{v.minor}.{v.micro}")
 

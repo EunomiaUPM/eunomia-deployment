@@ -1,0 +1,63 @@
+---
+title: "Fafnir"
+description: "The wallet. A sidecar next to every agent and authority that holds its keys, DIDs and credentials."
+---
+
+[Fafnir](https://github.com/EunomiaUPM/fafnir-wallet) is a small HTTP wallet that runs **as a separate service next to each node**: one for the authority, one for each agent. It custodies private keys, signs JWTs and plays the holder side of OID4VCI and OID4VP. It is not a user-facing wallet: no UI, no login, no sessions. Think of it as the node's key daemon.
+
+## How it runs
+
+```text
+┌─────────────────────────┐         ┌───────────────────────┐
+│  Heimdall / DS-Agent    │  HTTP   │    Fafnir wallet      │
+│  ymir::WalletTrait      │ ──────► │  :7001, compose only  │
+│    └─ FafnirService     │         └──────────┬────────────┘
+└─────────────────────────┘                    │
+                                         the node's Postgres
+```
+
+The node reaches it by compose service name (`provider-fafnir-wallet`, `heimdall-fafnir-wallet`…) on port 7001. The wallet **publishes no port to the host**: it trusts its network, so only its own node may reach it.
+
+Once, the node links its wallet (`POST /api/v1/wallet/link` on the node, the first step of `eunomia onboard`): the wallet reads the node's key from the vault, creates its DID (`did:jwk` or `did:web`, as the node's configuration says) and marks it as the default.
+
+```yaml
+fafnir-setup:
+  image: "${FAFNIR_IMAGE}:${FAFNIR_TAG}"
+  command: ["setup", "--env-file", "/app/static/fafnir/config.yaml"]
+fafnir-wallet:
+  image: "${FAFNIR_IMAGE}:${FAFNIR_TAG}"
+  command: ["start", "--env-file", "/app/static/fafnir/config.yaml"]
+```
+
+Its configuration is short: where it listens, its database (the node's own PostgreSQL, by service name) and whether the vault is real. See [`fafnir.provider.yaml`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/static/config/provider/standalone/fafnir.provider.yaml).
+
+## HTTP API
+
+The node calls it; you normally do not.
+
+| Area | Calls |
+| --- | --- |
+| Keys | `GET /keys/all`, `GET /keys/{id}`, `POST /keys/new`, `DELETE /keys/{id}` |
+| DIDs | `GET /dids/all`, `GET /dids/default`, `GET /dids/{id}`, `POST /dids/new` (`Jwk`, `Web`), `POST /dids/{id}/default`, `DELETE /dids/{id}` |
+| Credentials | `GET /vcs/all`, `GET /vcs/{id}`, `DELETE /vcs/{id}`; credentials arrive through OID4VCI, not by POST |
+| OID4VC, one shot | `POST /oid4vci` and `POST /oid4vp` with `{ "uri": "…" }`: redeem an offer, answer a presentation request |
+| OID4VC, step by step | `POST /vci/resolve_offer`, `/vci/accept_offer`, `/vp/resolve_request`, `/vp/present` |
+
+## Security model
+
+- Reachable **only** from the containers of its node. Publishing port 7001 outside the compose network would hand its keys to anyone who can route there.
+- Keys come from the vault at link time and are stored in the node's PostgreSQL **without additional encryption at rest**.
+- No authentication on its HTTP API: the network boundary is the protection.
+- Pure Rust cryptography (RustCrypto: Ed25519, RSA, SHA-2), no OpenSSL.
+
+## Known limitations
+
+From the project's own list:
+
+- no at-rest encryption of private keys;
+- `did:web` resolution takes the first verification method, and the first key of a DID signs everything;
+- presentation matching goes by credential type, without evaluating field filters;
+- no `c_nonce` enforcement in the OID4VCI proof;
+- no OpenAPI definition or automated test suite yet.
+
+The next planned milestone is a **credential service** mode following the Decentralized Claims Protocol, alongside the current holder-wallet mode.

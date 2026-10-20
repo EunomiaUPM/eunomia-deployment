@@ -1,0 +1,80 @@
+---
+title: "Architecture"
+description: "The participants of an EUNOMIA data space, what each one does, and how they talk to each other."
+---
+
+An EUNOMIA data space has three kinds of participant and one rule: **nobody shares data with someone they have not verified, under terms they have not agreed.**
+
+<Architecture />
+
+## The participants
+
+**The authority** ([Heimdall](/docs/components/heimdall)) is the data space's registry and trust anchor. It decides who is a participant, and proves it by issuing verifiable credentials: a `DataSpaceParticipant` credential to every member and, in its eco role, the Gaia-X legal and label credentials. It verifies presentations and guards its own endpoints with GNAP.
+
+**The provider** ([DS-Agent](/docs/components/ds-agent)) publishes a **catalog** (DCAT 3) of datasets. Each dataset has **policies** (ODRL) that say on what terms it can be used, and **distributions** with **connectors** that say how to reach the data behind it: an HTTP API to pull, an event stream to push. The provider decides which consumers it talks to, by the credentials it asks them for.
+
+**The consumer** (DS-Agent too) browses catalogs, **negotiates contracts** with providers and starts **transfers** under the agreements those negotiations produce.
+
+**Every one of them** runs a **wallet** ([Fafnir](/docs/components/fafnir)) as a sidecar, holding its keys, its DID and its credentials, and signing on its behalf. All of them share one core library, [Ymir](/docs/components/ymir).
+
+**The data backend** is the system that actually holds the data: a database, an API, a stream. The provider agent sits in front of it, so the consumer never talks to it and never sees its credentials. Here it is the [demo factory](/docs/components/demo-factory).
+
+An agent can be provider and consumer at the same time. The standalone deployment runs one of each to keep the roles visible.
+
+## The life of an exchange
+
+<Steps>
+<Step>
+
+### Onboarding
+
+The participants link their wallets, get their credentials from the authority, and the consumer connects to the provider: it presents its credentials and receives a GNAP access token. [Onboarding](/docs/architecture/onboarding) has every call.
+
+</Step>
+<Step>
+
+### Discovery
+
+With that token, the consumer asks for the provider's catalog over the Dataspace Protocol and picks a dataset and one of its policies.
+
+</Step>
+<Step>
+
+### Negotiation
+
+Consumer and provider exchange offers until they agree: eight states, from `REQUESTED` to `FINALIZED`, ending in an **agreement**. See [Protocols](/docs/architecture/protocols).
+
+</Step>
+<Step>
+
+### Transfer
+
+Under that agreement the consumer starts a transfer, pull or push. The provider's **data plane** fetches from the backend with its own credentials and hands the data over, or forwards every event as it happens. See [Data plane](/docs/architecture/data-plane).
+
+</Step>
+</Steps>
+
+`./eunomia e2e` runs the whole sequence and checks the result of every step; [Exchanging data](/docs/guides/data-exchange) shows each call.
+
+## Design principles
+
+- **Standards, not a platform.** Every interaction between participants is an open protocol: DSP for catalogs, contracts and transfers, GNAP for authorisation, OID4VCI and OID4VP for credentials, W3C Verifiable Credentials and DIDs for identity, ODRL for policy. Any implementation that speaks them can join.
+- **Sovereignty by construction.** Each participant holds its own keys in its own wallet, decides whom it trusts, and keeps its backend credentials to itself.
+- **Small, separate components.** An agent, an authority and a wallet, each a Rust service with its own database, wired together by configuration, not by a shared runtime.
+- **Open source, all of it.** GPL-3.0, with no open-core split.
+
+## In this repository
+
+| Path | What |
+| --- | --- |
+| `eunomia`, `eunomia.cmd`, `cli/` | The [CLI](/docs/cli) |
+| `versions.env` | The component image versions, in one place |
+| `deployment/standalone/` | Compose files for one machine |
+| `deployment/prod/` | Compose files for real servers |
+| `deployment/instances/` | Templates for extra connectors and authorities |
+| `services/demo-factory/` | The demo data backend |
+| `static/config/` | Agent, authority and wallet configuration |
+| `static/catalog/` | The catalog the provider is populated with |
+| `static/specs/` | OpenAPI specs of the agent and the authority |
+| `vault/` | Example keys, certificates and secrets |
+| `docs/` | This site |

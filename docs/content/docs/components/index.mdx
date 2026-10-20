@@ -1,0 +1,48 @@
+---
+title: "Components"
+description: "The four Rust components every EUNOMIA data space is made of, and the demo backend this repository adds."
+---
+
+| Component | Role | Image (`versions.env`) | Repository |
+| --- | --- | --- | --- |
+| [DS-Agent](/docs/components/ds-agent) | provider and consumer agent | `quay.io/eunomia_upm/ds-agent:v0.4.0` | [EunomiaUPM/ds-agent](https://github.com/EunomiaUPM/ds-agent) |
+| [Heimdall](/docs/components/heimdall) | authority | `quay.io/eunomia_upm/heimdall:v1.5.0` | [EunomiaUPM/heimdall](https://github.com/EunomiaUPM/heimdall) |
+| [Fafnir](/docs/components/fafnir) | wallet, next to each of them | `quay.io/eunomia_upm/fafnir-wallet:v0.2.0` | [EunomiaUPM/fafnir-wallet](https://github.com/EunomiaUPM/fafnir-wallet) |
+| [Ymir](/docs/components/ymir) | shared core library | built into the three above | [EunomiaUPM/ymir](https://github.com/EunomiaUPM/ymir) |
+| [Demo factory](/docs/components/demo-factory) | demo data backend | built from `services/demo-factory/` | this repository |
+
+The versions are the ones pinned in [`versions.env`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/versions.env); the pages below describe those. All of them are GPL-3.0.
+
+## How they fit
+
+```text
+         ┌───────────────┐
+         │   Heimdall    │──── Fafnir ─── Postgres
+         └───────┬───────┘
+     credentials │ (OID4VCI / OID4VP, GNAP)
+      ┌──────────┴───────────┐
+┌─────┴─────┐          ┌─────┴─────┐
+│ DS-Agent  │◄── DSP ─►│ DS-Agent  │
+│ provider  │          │ consumer  │
+└─────┬─────┘          └───────────┘
+      │ data plane       each with Fafnir, Postgres and Redis
+┌─────┴─────┐
+│ backend   │
+└───────────┘
+```
+
+Every node is a set of containers in its own compose project:
+
+| Node | Containers |
+| --- | --- |
+| Authority | Heimdall, Fafnir wallet, Postgres, and one-shot `setup` jobs for both |
+| Agent | DS-Agent, Fafnir wallet, Postgres, Redis, and one-shot `setup` jobs |
+
+The `setup` jobs run the database migrations and derive the identity material from the vault, then exit. The long-running services start once they succeed.
+
+## Common traits
+
+- **Rust**, on Tokio, with Axum for HTTP and SeaORM on PostgreSQL.
+- **Configured by one YAML file**, passed with `-e` / `--env-file`, plus env files for the vault. The standalone ones live in [`static/config/`](https://github.com/EunomiaUPM/eunomia-deployment/tree/main/static/config).
+- **Two commands**: `setup` (migrate and prepare) and `start` (serve).
+- **amd64 images**. On Apple Silicon Docker Desktop runs them under emulation.
