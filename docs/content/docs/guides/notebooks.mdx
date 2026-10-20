@@ -1,42 +1,66 @@
 ---
 title: "Notebooks"
-description: "The demo's exchange as Jupyter notebooks, one call per cell, between any two agents; and how an extension brings its own."
+description: "Work with any data space call by call, in Jupyter: any two agents, any dataset the provider publishes. Extensions add notebooks of their own."
 ---
 
-`eunomia demo test` runs an exchange in one go. The notebooks run the same exchange one call per cell, with every request and answer on the page, so you can read it, change a payload and run that cell again.
+The notebooks are how you work with a data space one call per cell, with every request and answer on the page: explore a catalog, negotiate with a policy of your own, follow a transfer, try what an application will do. They work with any pair of agents and whatever the provider publishes; nothing in them is tied to the demo.
+
+```bash
+./eunomia notebook alice bob                         # alice is the provider, bob the consumer
+./eunomia notebook alice bob --dataset "weather"     # negotiate that dataset (part of its title or id)
+```
+
+The first time, `notebook` creates a virtualenv with JupyterLab in `notebooks/.venv`. Every time, it logs the two agents in with each other over GNAP if they are not yet, then opens JupyterLab on the pair's session with the environment the notebooks read. Swap the names and the roles swap: `./eunomia notebook bob alice`.
+
+The provider needs something in its catalog: data of your own published from its console or an extension, or the demo's (`./eunomia demo publish alice`).
+
+## The notebooks
+
+| Notebook | What it does |
+| --- | --- |
+| `01_auth` | Each agent's DID, its mates, and the GNAP token each one holds for the other |
+| `02_catalog` | The consumer requests the provider's catalog over DSP: every dataset with its formats and policies, and the offers of the chosen one in plain words (`use if purpose isA commercial`) |
+| `03_pull_flow` | Contract negotiation step by step, from `REQUESTED` to `FINALIZED`. Then a pull transfer: the data through the provider's dataplane (records become a table), the dataplane closing on suspension, restart and completion |
+| `04_push_flow` | The same negotiation in two calls, through the `bff-rpc` routes. Then a push transfer: the provider subscribes to its backend and what it pushes reaches a small HTTP server inside the notebook, filling a table as it arrives |
+
+The dataset is the one `--dataset` names (it sets `EUNOMIA_DATASET`), or else the first one with a policy. A flow stops with a clear message when the dataset offers no `HTTP_PULL` or no `HTTP_PUSH` distribution.
+
+`03_pull_flow` and `04_push_flow` start with `%run ./02_catalog.ipynb`, which starts with `%run ./01_auth.ipynb`: open either flow and run all its cells. The sources are `notebooks/01_auth.ipynb` and `notebooks/generic/`.
+
+## Extensions bring their own
+
+An extension can add notebooks about its own data, with its own `notebook` action ([Extensions](/docs/cli/extensions)). They get `01_auth`, the cards and the theme from the core. The demo's publish the factory and use it:
 
 ```bash
 ./eunomia demo up
-./eunomia demo notebook alice bob     # alice is the provider, bob the consumer
+./eunomia demo notebook alice bob
 ```
 
-Notebooks belong to an extension: `notebook` is an action of the demo extension, and any extension can bring its own ([Extensions](/docs/cli/extensions)). The first time, it creates a virtualenv with JupyterLab in `notebooks/.venv`. Every time, it logs the two agents in with each other over GNAP if they are not yet, then opens JupyterLab on the pair's session with the environment the notebooks read. Swap the names and the roles swap: `./eunomia demo notebook bob alice`.
+| Demo notebook | What it does |
+| --- | --- |
+| `02_catalog` | The provider publishes the factory: a dataset, a pull and a push distribution, two ODRL policies (one from a template), the OAuth2 connector templates and instances. Then the consumer finds the offer |
+| `03_pull_flow` | The negotiation, then the robots through the dataplane, with their latest measures as a table, and the factory refusing the same call without a token |
+| `04_push_flow` | The negotiation through `bff-rpc`, then the robot events as they arrive |
+
+Each run of the demo's `02_catalog` adds a new dataset to the provider's catalog, and its flows use the one that run created. Its sources are in `extensions/demo/notebooks/`.
 
 ## Several sessions at once
 
 Each provider/consumer pair is a session of its own, so you can keep several open side by side:
 
 ```bash
-./eunomia demo notebook alice bob  # one terminal
-./eunomia demo notebook bob inaki  # another one
+./eunomia notebook alice bob       # one terminal
+./eunomia notebook bob inaki       # another one
+./eunomia demo notebook alice bob  # and the demo's, separately
 ```
 
 Each session has:
 
-- its own copy of the notebooks in `notebooks/sessions/demo/<provider>-<consumer>/`, where its outputs and your edits stay
-- its own port for the pushed events, from `1291` up, kept for as long as the session exists
+- its own copy of the notebooks, where its outputs and your edits stay: `notebooks/sessions/eunomia/<provider>-<consumer>/` for the generic ones, `notebooks/sessions/<extension>/<provider>-<consumer>/` for an extension's
+- its own port for pushed data, from `1291` up, kept for as long as the session exists
 - its own JupyterLab, on its own port, with its own tabs and layout
 
-The sources are `notebooks/01_auth.ipynb`, the same for every extension, and the extension's own: the demo's are in `extensions/demo/notebooks/`. When one of them changes, the next session start copies it in again; `--fresh` copies them all again, dropping the session's outputs and edits. To forget a session, delete its folder.
-
-## The notebooks
-
-| Notebook | What it does |
-| --- | --- |
-| `01_auth` | Each agent's DID, and the GNAP token each one holds for the other |
-| `02_catalog` | The provider publishes the factory: a dataset, a pull and a push distribution, two ODRL policies (one from a template), the OAuth2 connector templates and instances. Then the consumer requests the provider's catalog and finds the offer |
-| `03_pull_flow` | Contract negotiation step by step, from `REQUESTED` to `FINALIZED`. Then a pull transfer: the robots through the provider's dataplane, the factory refusing the same call without a token, the dataplane closing on suspension and opening again on restart, and completion |
-| `04_push_flow` | The same negotiation in two calls, through the `bff-rpc` routes. Then a push transfer: the provider subscribes to the factory and the robot events reach a small HTTP server inside the notebook |
+When a source notebook changes, the next session start copies it in again; `--fresh` copies them all again, dropping the session's outputs and edits. To forget a session, delete its folder.
 
 ## What each cell shows
 
@@ -47,47 +71,45 @@ Every API call appears as a card:
 - the fields worth reading, wherever the answer nests them: `@type`, the consumer and provider PIDs, ids, the agreement, the dataplane address, the error code and reason
 - the request and response bodies, folded when they are long
 
-Lists are tables: each agent's mates and their GNAP tokens, the provider's catalog and its offers in plain words (`use if purpose isA commercial`), the robots with their latest measures, the messages the agents exchanged, and the robot events, filling in as they arrive. Each flow ends with a timeline of every step it asked of the agents.
+Lists are tables: each agent's mates and their GNAP tokens, the provider's catalog and its offers, the data that came through, the messages the agents exchanged, and pushed data as it arrives. Each flow ends with a timeline of every step it asked of the agents.
 
-The cards and tables use the colours and fonts of these docs (Geist, Geist Mono), in light and dark, in any Jupyter. JupyterLab opened with `eunomia demo notebook` goes further: the whole interface takes the same theme, with the EUNOMIA logo next to Jupyter's. That theme lives in `notebooks/jupyter/custom/custom.css`; your JupyterLab settings stay where they are.
+The cards and tables use the colours and fonts of these docs (Geist, Geist Mono), in light and dark, in any Jupyter. JupyterLab opened with `eunomia notebook` goes further: the whole interface takes the same theme, with the EUNOMIA logo in the file browser. That theme lives in `notebooks/jupyter/custom/custom.css`; your JupyterLab settings stay where they are.
 
 DIDs and tokens are shortened on screen only; the variables keep them whole. The code behind the cards is `notebooks/helpers.py`; every cell still makes its own `requests` call, so what you see is what you can copy.
 
-## How they chain
-
-`03_pull_flow` and `04_push_flow` start with `%run ./02_catalog.ipynb`, which starts with `%run ./01_auth.ipynb`: open either flow and run all its cells. Each run adds a new dataset to the provider's catalog, and the flow uses the dataset that run created.
-
 ## What the notebooks read
 
-Nothing about the agents is written in the notebooks; it all comes from `os.environ`, set by `eunomia demo notebook`:
+Nothing about the agents is written in the notebooks; it all comes from `os.environ`, set by the `notebook` command:
 
 | Variable | Example | What |
 | --- | --- | --- |
 | `EUNOMIA_PROVIDER`, `EUNOMIA_CONSUMER` | `alice`, `bob` | the agents' names |
 | `EUNOMIA_PROVIDER_URL`, `EUNOMIA_CONSUMER_URL` | `http://127.0.0.1:1601` | their APIs, from the notebook |
 | `EUNOMIA_CONSUMER_DOCKER_URL` | `http://host.docker.internal:1602` | the consumer as the provider reaches it: the callback address in DSP messages |
-| `EUNOMIA_FACTORY_URL` | `http://127.0.0.1:1210` | the factory, from the notebook (to show it refuses calls without a token) |
-| `EUNOMIA_FACTORY_DOCKER_URL`, `EUNOMIA_FACTORY_EVENTS_DOCKER_URL`, `EUNOMIA_FACTORY_TOKEN_DOCKER_URL` | `http://host.docker.internal:1210` | the factory's API, its subscriptions and its Keycloak token URL, as the provider calls them: they go into the connector instances |
-| `EUNOMIA_SINK_PORT`, `EUNOMIA_SINK_DOCKER_URL` | `1291` | where `04_push_flow` listens, and the address the consumer pushes the events to |
+| `EUNOMIA_SINK_PORT`, `EUNOMIA_SINK_DOCKER_URL` | `1291` | where `04_push_flow` listens, and the address the consumer pushes to |
+| `EUNOMIA_DATASET` | `weather` | optional: the dataset the generic notebooks negotiate |
+| `EUNOMIA_FACTORY_*` | `http://host.docker.internal:1210` | the demo's notebooks only: the factory, as the notebook and the provider's connectors reach it |
 
-`eunomia demo notebook` prints them as it starts. Any Jupyter with these variables set runs the notebooks: VS Code, for instance, if you export them in the shell you start it from.
+The command prints them as it starts. Any Jupyter with these variables set runs the notebooks: VS Code, for instance, if you export them in the shell you start it from.
 
 ## Run them headless
 
 ```bash
-./eunomia demo notebook alice bob --execute              # both flows
-./eunomia demo notebook alice bob --execute --flow push  # only one
+./eunomia notebook alice bob --execute              # both flows
+./eunomia notebook alice bob --execute --flow pull  # only one
+./eunomia demo notebook alice bob --execute         # the demo's
 ```
 
-`--execute` runs the flows without opening JupyterLab and saves the executed copies, outputs included, in `notebooks/.runs/demo/<provider>-<consumer>/`. Two pairs can run at the same time. It fails on the first cell that fails and names it. This is a quick way to check a data space before a workshop.
+`--execute` runs the flows without opening JupyterLab and saves the executed copies, outputs included, in `notebooks/.runs/<eunomia or extension>/<provider>-<consumer>/`. Several pairs can run at the same time. It fails on the first cell that fails and names it: a quick way to check a data space before a workshop.
 
 ## Options
 
 | | |
 | --- | --- |
+| `--dataset` | `eunomia notebook` only: which dataset to negotiate |
 | `--no-browser` | start JupyterLab without opening a browser (in Codespaces or over SSH) |
 | `--execute`, `--flow pull\|push` | see above |
 | `--fresh` | copy every source notebook into the session again |
-| `EUNOMIA_SINK_PORT` | a fixed port for the pushed events, instead of the session's own |
+| `EUNOMIA_SINK_PORT` | a fixed port for pushed data, instead of the session's own |
 
-The notebooks run on your machine, so they need Python 3.8+ there; it does not run inside the tools container. Its requirements are in `notebooks/requirements.txt`, and the virtualenv is reinstalled when that file changes.
+The notebooks run on your machine, so they need Python 3.8+ there; they do not run inside the tools container. Their requirements are in `notebooks/requirements.txt`, and the virtualenv is reinstalled when that file changes. Pushed data reaches the notebook through `host.docker.internal`, so the push flow needs the consumer agent on this machine.

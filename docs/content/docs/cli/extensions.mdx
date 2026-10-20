@@ -39,7 +39,7 @@ An extension is a directory with an `__init__.py` that defines `extension`, an i
 | `commands(parser, actions)` | its own actions: `eunomia <name> <action>` | adds them to the CLI |
 | `services()` | the compose stacks it runs, as `ComposeService` | `stop`, `down`, `status`, `logs <service>`, `images` and `doctor` take them into account; new instances keep off their ports |
 | `test(consumer, provider, args)` | its end-to-end test between two agents | adds `eunomia <name> test --consumer A --provider B`, plus the options of `test_arguments(parser)` |
-| `notebooks()` | its notebooks, as a `NotebookSet` | adds `eunomia <name> notebook <provider> <consumer>`, with independent sessions per pair, `--execute` and `--fresh` ([Notebooks](/docs/guides/notebooks)) |
+| `notebooks()` | notebooks about its own data, as a `NotebookSet` | adds `eunomia <name> notebook <provider> <consumer>`, next to the core's generic `eunomia notebook`, with `01_auth`, the cards and sessions per pair ([Notebooks](/docs/guides/notebooks)) |
 
 An action is an argparse parser with `set_defaults(run=...)`: a function that takes the parsed arguments and returns the exit code.
 

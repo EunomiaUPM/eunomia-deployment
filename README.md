@@ -26,7 +26,7 @@ cd eunomia-deployment
 
 On Windows, use `.\eunomia.cmd` instead of `./eunomia`. No Docker at hand? Open the repository in GitHub Codespaces.
 
-`./eunomia ls` lists the instances, their URLs and their consoles (agents: `eunomia` / `eunomia`). `./eunomia demo notebook alice bob` runs the same exchange one call per cell, in Jupyter. Any agent can play either role: `./eunomia demo publish bob` and `./eunomia demo test --consumer alice --provider bob` run it the other way round.
+`./eunomia ls` lists the instances, their URLs and their consoles (agents: `eunomia` / `eunomia`). `./eunomia notebook alice bob` runs an exchange one call per cell, in Jupyter, with whatever alice publishes. Any agent can play either role: `./eunomia demo publish bob` and `./eunomia demo test --consumer alice --provider bob` run it the other way round.
 
 The demo is an extension (`extensions/demo/`): what agents share, and how you test it, comes from extensions. Your own project is another one, kept in its own repository and loaded with `EUNOMIA_EXTENSIONS`; see [Extensions](https://eunomiaupm.github.io/eunomia-deployment/docs/cli/extensions).
 
