@@ -1,8 +1,8 @@
 http_host: &http_host
-  protocol: 'http'
-  url: '127.0.0.1'
+  protocol: "http"
+  url: "127.0.0.1"
   port: null
-  internal_port: '7001'
+  internal_port: "7001"
 
 hosts:
   http: *http_host
@@ -11,8 +11,8 @@ hosts:
 
 db_config:
   db_type: Postgres
-  url: 'heimdall-db'
-  port: '5432'
+  url: "agent-db"
+  port: "5432"
 
 is_docker: true
 is_vault_real: false

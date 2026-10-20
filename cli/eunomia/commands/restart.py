@@ -1,15 +1,10 @@
-"""Restart prod participants on their servers over SSH.
+"""Restart remote instances on their servers over SSH.
 
-Connection settings come from the repo-root .env, one block per node:
-
-  <PREFIX>_SSH_HOST   server to reach                       (required)
-  <PREFIX>_SSH_USER   login user                            (required)
-  <PREFIX>_SSH_PASS   password; leave empty to use SSH keys (needs sshpass if set)
-  <PREFIX>_PATH       directory on the server holding the compose file (required)
-  <PREFIX>_COMPOSE    compose file name   (default: the one in deployment/prod)
-  <PREFIX>_SERVICE    agent service name  (default: heimdall / provider / consumer)
-
-PREFIX is AUTHORITY, PROVIDER or CONSUMER.
+A remote instance knows how to reach its server when it was registered with
+`eunomia remote add <name> ... --ssh user@host --path <deployment/prod dir>`.
+A password, if the server needs one, comes from the environment:
+<NAME>_SSH_PASS (the instance name upper-cased, dashes as underscores); leave
+it unset to use SSH keys.
 """
 
 from __future__ import annotations
@@ -21,27 +16,18 @@ import sys
 from typing import List, Sequence
 
 from .. import compose, log, settings
+from . import instances
 
-PREFIXES = {
-    "authority": "AUTHORITY",
-    "provider": "PROVIDER",
-    "consumer": "CONSUMER",
-}
-
-
-def _var(prefix: str, name: str, default: str = "") -> str:
-    value = os.environ.get(f"{prefix}_{name}", default)
-    if not value:
-        raise log.fail(f"{prefix}_{name} is not set. Add it to .env (see .env.example).")
-    return value
+# The service and wallet each kind runs in deployment/prod.
+SERVICES = {"agent": ("agent", "agent-fafnir-wallet"), "authority": ("heimdall", "heimdall-fafnir-wallet")}
 
 
 def _remote_script(path: str, compose_file: str, service: str, wallet: str) -> str:
     q = shlex.quote
     # The compose files read the image pins from versions.env at the repo root.
     dc = f"docker compose --env-file ../../versions.env -f {q(compose_file)}"
-    # Only the agent and its wallet are recreated. The databases have no
-    # volume, so recreating them would wipe the participant's state.
+    # Only the service and its wallet are recreated. The databases have no
+    # volume, so recreating them would wipe the instance's state.
     body = (
         f"{dc} pull {q(wallet)} {q(service)}\n"
         f"{dc} up -d --wait --force-recreate --no-deps {q(wallet)} {q(service)}"
@@ -49,45 +35,52 @@ def _remote_script(path: str, compose_file: str, service: str, wallet: str) -> s
     return f"set -e\ncd {q(path)}\n{body}\necho '--- running containers ---'\n{dc} ps\n"
 
 
-def _ssh_cmd(prefix: str) -> List[str]:
-    host = _var(prefix, "SSH_HOST")
-    user = _var(prefix, "SSH_USER")
+def _password_var(name: str) -> str:
+    return name.upper().replace("-", "_") + "_SSH_PASS"
+
+
+def _ssh_cmd(inst: "instances.Instance") -> List[str]:
+    if not (inst.ssh_host and inst.ssh_user and inst.ssh_path):
+        raise log.fail(
+            f"{inst.name!r} has no SSH access registered. Register it again with\n"
+            f"  eunomia remote add {inst.name} --kind {inst.kind} --url {inst.url} --ssh <user>@<host> --path <dir>"
+        )
     # accept-new pins the host key on first contact and refuses a changed one,
     # instead of trusting whatever answers like StrictHostKeyChecking=no did.
-    ssh = ["ssh", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=10", f"{user}@{host}", "bash", "-s"]
-    if os.environ.get(f"{prefix}_SSH_PASS"):
+    ssh = ["ssh", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=10", f"{inst.ssh_user}@{inst.ssh_host}", "bash", "-s"]
+    if os.environ.get(_password_var(inst.name)):
         compose.require("sshpass", "Install it (brew install hudochenkov/sshpass/sshpass) or switch to SSH keys.")
         # -e reads SSHPASS from the environment, so the password never shows in ps.
         return ["sshpass", "-e", *ssh]
     return ssh
 
 
-def restart(nodes: Sequence[str], dry_run: bool) -> int:
-    nodes_all = settings.DATASPACE_NODES
-    targets = [n for n in nodes_all if n in nodes] if "all" not in nodes else list(nodes_all)
-    prod = settings.stacks("prod")
-
+def restart(names: Sequence[str], dry_run: bool) -> int:
+    targets = [instances.get(n) for n in names]
     failed = []
-    for node in targets:
-        prefix = PREFIXES[node]
-        stack = prod[node]
-        path = _var(prefix, "PATH")
-        compose_file = os.environ.get(f"{prefix}_COMPOSE") or stack.compose.name
-        service = os.environ.get(f"{prefix}_SERVICE") or (stack.service or "")
-        script = _remote_script(path, compose_file, service, f"{service}-fafnir-wallet")
-        cmd = _ssh_cmd(prefix)
+    for inst in targets:
+        if inst.local:
+            log.info(f"{inst.name} is local: restarting it here")
+            if not dry_run:
+                instances.stop(inst)
+                instances.start(inst)
+            continue
+        service, wallet = SERVICES[inst.kind]
+        compose_file = settings.prod_stacks()[inst.kind].compose.name
+        script = _remote_script(inst.ssh_path, compose_file, service, wallet)
+        cmd = _ssh_cmd(inst)
 
-        log.step(f"Restarting {node} on {os.environ.get(prefix + '_SSH_HOST')}")
+        log.step(f"Restarting {inst.name} on {inst.ssh_host}")
         if dry_run:
             log.info("  " + " ".join(cmd))
             print(script, file=sys.stderr)
             continue
-        env = {**os.environ, "SSHPASS": os.environ.get(f"{prefix}_SSH_PASS", "")}
+        env = {**os.environ, "SSHPASS": os.environ.get(_password_var(inst.name), "")}
         if subprocess.run(cmd, input=script, text=True, env=env).returncode != 0:
-            log.warn(f"{node}: remote execution failed")
-            failed.append(node)
+            log.warn(f"{inst.name}: remote execution failed")
+            failed.append(inst.name)
             continue
-        log.ok(f"{node} restarted")
+        log.ok(f"{inst.name} restarted")
 
     if failed:
         raise log.fail(f"\nFailed: {', '.join(failed)}")

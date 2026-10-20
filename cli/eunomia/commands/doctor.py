@@ -6,7 +6,6 @@ import re
 import shutil
 import subprocess
 import sys
-from typing import List
 
 from .. import compose, log, settings
 from . import images as images_cmd
@@ -74,25 +73,29 @@ def _versions(r: Report) -> None:
 
 
 def _ports(r: Report) -> None:
-    ours = compose.run(["docker", "ps", "-q", "--filter", f"name=^/{settings.container_prefix()}"], capture=True, check=False).split()
-    ports: List[int] = [p for s in settings.stacks("standalone").values() for p in s.ports]
-    busy = compose.busy_ports(ports)
+    demo_ports = list(settings.demo_ports())
+    busy = compose.busy_ports(demo_ports)
+    demo_up = compose.run(["docker", "ps", "-q", "--filter", f"name=^/{settings.container_prefix()}factory-"], capture=True, check=False).strip()
     if not busy:
-        r.ok(f"Ports free: {', '.join(map(str, ports))}")
-    elif ours:
-        r.ok(f"Ports {', '.join(map(str, busy))} in use, the standalone deployment is running")
+        r.ok(f"Demo factory ports free: {', '.join(map(str, demo_ports))}")
+    elif demo_up:
+        r.ok("Demo factory ports in use by the demo factory itself")
     else:
         r.bad(
-            f"Ports {', '.join(map(str, busy))} are in use by another program",
-            "Free them, or move the database and demo ports in .env (see .env.example).",
+            f"Demo factory ports {', '.join(map(str, busy))} are in use by another program",
+            "Free them, or move them in .env (EUNOMIA_FACTORY_*_PORT, see .env.example).",
         )
-    foreign = compose.foreign_listeners(ports)
-    if foreign:
-        r.bad("Processes outside Docker hold deployment ports:\n" + "\n".join(foreign), "Stop them: 127.0.0.1 would reach them instead of the containers.")
+    for label, (lo, hi) in (("HTTP", settings.http_ports()), ("Postgres", settings.db_ports())):
+        sample = list(range(lo, min(hi, lo + 40) + 1))
+        free = [p for p in sample if not compose.port_in_use(p)]
+        if free:
+            r.ok(f"{label} ports for instances: {lo}-{hi}, free ones available")
+        else:
+            r.bad(f"No free {label} port at the start of {lo}-{hi}", f"Set EUNOMIA_{label.upper() if label == 'HTTP' else 'DB'}_PORTS to another range in .env.")
 
 
 def _images(r: Report) -> None:
-    for ref in sorted(images_cmd.pinned("standalone")):
+    for ref in sorted(images_cmd.pinned()):
         res = subprocess.run(["docker", "manifest", "inspect", ref], capture_output=True, text=True)
         if res.returncode == 0:
             r.ok(f"image {ref}")
@@ -114,5 +117,5 @@ def run(check_images: bool) -> int:
     if r.problems:
         log.fail(f"\n{r.problems} problem(s) found. Fix them and run eunomia doctor again.")
         return 1
-    log.ok("\nAll good. Start with: eunomia up")
+    log.ok("\nAll good. Start with: eunomia authority add <name>")
     return 0

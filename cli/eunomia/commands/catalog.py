@@ -1,13 +1,14 @@
-"""Provider catalog: the demo factory dataset and everything hanging off it.
+"""An agent's catalog: the demo factory dataset and everything hanging off it.
 
-It creates the dataset, an HTTP pull and an HTTP push distribution, three
-ODRL policies, the pull and push connector templates and one connector
-instance per distribution.
+Any agent can publish it: `eunomia catalog populate <agent>`. It creates the
+dataset, an HTTP pull and an HTTP push distribution, three ODRL policies, the
+pull and push connector templates and one connector instance per
+distribution.
 
 Payloads live in static/catalog/; the __PLACEHOLDERS__ in them are filled in
-here with the ids the provider returns and the factory URLs. The connector
-instances get the URLs the provider agent uses (host.docker.internal in
-standalone): the agent is the one that calls the factory.
+here with the ids the agent returns and the factory URLs. The connector
+instances get the URLs the agent uses (host.docker.internal for local ones):
+the agent is the one that calls the factory.
 """
 
 from __future__ import annotations
@@ -50,8 +51,8 @@ def title() -> str:
 
 
 class Catalog:
-    def __init__(self, provider_url: str) -> None:
-        self.api = f"{provider_url}/api/v1"
+    def __init__(self, agent_url: str) -> None:
+        self.api = f"{agent_url}/api/v1"
 
     def get(self, path: str) -> Any:
         return http.get_json(f"{self.api}{path}")
@@ -107,10 +108,10 @@ def fill_connector(payload: Dict[str, Any], template: Dict[str, Any], distributi
     return payload
 
 
-def populate(provider_url: str, demo: Demo, force: bool = False) -> None:
-    """Create the demo dataset if it is missing. With force, create it again."""
-    cat = Catalog(provider_url)
-    log.step(f"Populating the provider catalog (factory: {demo.docker_static_api})")
+def populate(agent: str, agent_url: str, demo: Demo, force: bool = False) -> None:
+    """Create the demo dataset in an agent's catalog if it is missing. With force, create it again."""
+    cat = Catalog(agent_url)
+    log.step(f"Populating the catalog of {agent} (factory: {demo.docker_static_api})")
 
     existing = {d.get("dctTitle"): d for d in cat.datasets()}
     if title() in existing and not force:
@@ -147,15 +148,15 @@ def populate(provider_url: str, demo: Demo, force: bool = False) -> None:
     cat.post("/connector/instances", fill_connector(_payload(PULL_CONNECTOR), pull_tpl, dist_ids["pull"], demo))
     cat.post("/connector/instances", fill_connector(_payload(PUSH_CONNECTOR), push_tpl, dist_ids["push"], demo))
     log.ok("  connectors   pull + push")
-    log.ok("\nCatalog populated")
+    log.ok(f"\nCatalog of {agent} populated. Other agents can now negotiate for it: eunomia e2e --consumer <agent> --provider {agent}")
 
 
-def show(provider_url: str) -> None:
+def show(agent: str, agent_url: str) -> None:
     """Print each dataset with its distributions and their connector instances."""
-    cat = Catalog(provider_url)
+    cat = Catalog(agent_url)
     datasets = cat.datasets()
     if not datasets:
-        log.info("The provider catalog is empty. Run: eunomia catalog populate")
+        log.info(f"The catalog of {agent} is empty. Load the demo into it with: eunomia catalog populate {agent}")
         return
     by_dataset: Dict[str, List[Dict[str, Any]]] = {}
     for dist in cat.distributions():

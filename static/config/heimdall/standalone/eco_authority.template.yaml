@@ -1,10 +1,12 @@
+# Template for a local authority, rendered by `eunomia authority add` into
+# instances/<name>/config/authority.yaml.
 # ==========================
 # COMMON ANCHORS
 # ==========================
 http_host: &http_host
   protocol: 'http'
   url: 'host.docker.internal'
-  port: '1500'
+  port: '${PORT}'
   internal_port: null
 
 # ==========================
@@ -23,7 +25,7 @@ connection_config:
 
 db_config:
   db_type: Postgres
-  url: 'heimdall-db'
+  url: 'db'
   port: '5432'
 
 wallet_config:
@@ -31,7 +33,7 @@ wallet_config:
   api:
     http:
       protocol: 'http'
-      url: 'heimdall-fafnir-wallet'
+      url: 'wallet'
       port: '7001'
       internal_port: null
     grpc: null

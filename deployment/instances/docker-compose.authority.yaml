@@ -1,18 +1,18 @@
 # =====================================================================
-# Extra authority: Heimdall + Fafnir wallet + Postgres.
+# An authority: Heimdall + Fafnir wallet + Postgres.
 #
-# Template for `eunomia authority add`. Not meant to be run by hand: it
-# needs versions.env, instances/<name>/instance.env and its own project
-# (-p eunomia-<name>), which the CLI passes.
+# Template for `eunomia authority add`. Not meant to be run by hand: the
+# CLI passes versions.env, instances/<name>/instance.env and the project
+# name (eunomia-<name>).
 #
-# instance.env: INSTANCE, HTTP_PORT, DB_PORT. Paths are relative to this
-# file. The generated config in instances/<name>/config/ reaches the
-# services below by name (db, wallet).
+# Variables: INSTANCE (the name), CONTAINER (<prefix>-<name>), HTTP_PORT,
+# DB_PORT. Paths are relative to this file. The generated config in
+# instances/<name>/config/ reaches the services below by name (db, wallet).
 # =====================================================================
 
 services:
   db:
-    container_name: "${INSTANCE:?}-db"
+    container_name: "${CONTAINER:?}-db"
     image: postgres:18
     restart: always
     env_file:
@@ -28,7 +28,7 @@ services:
       retries: 30
 
   wallet-setup:
-    container_name: "${INSTANCE}-wallet-setup"
+    container_name: "${CONTAINER}-wallet-setup"
     image: "${FAFNIR_IMAGE:?set FAFNIR_IMAGE in versions.env}:${FAFNIR_TAG:?set FAFNIR_TAG in versions.env}"
     platform: linux/amd64
     restart: "no"
@@ -45,7 +45,7 @@ services:
     command: ["setup", "--env-file", "/app/static/fafnir/config.yaml"]
 
   wallet:
-    container_name: "${INSTANCE}-wallet"
+    container_name: "${CONTAINER}-wallet"
     image: "${FAFNIR_IMAGE}:${FAFNIR_TAG}"
     platform: linux/amd64
     restart: always
@@ -69,7 +69,7 @@ services:
       - "host.docker.internal:host-gateway"
 
   heimdall-setup:
-    container_name: "${INSTANCE}-setup"
+    container_name: "${CONTAINER}-setup"
     image: "${HEIMDALL_IMAGE:?set HEIMDALL_IMAGE in versions.env}:${HEIMDALL_TAG:?set HEIMDALL_TAG in versions.env}"
     platform: linux/amd64
     restart: "no"
@@ -87,7 +87,7 @@ services:
     command: ["setup", "--env-file", "/app/static/config/authority.yaml"]
 
   heimdall:
-    container_name: "${INSTANCE}"
+    container_name: "${CONTAINER}"
     image: "${HEIMDALL_IMAGE}:${HEIMDALL_TAG}"
     platform: linux/amd64
     restart: always

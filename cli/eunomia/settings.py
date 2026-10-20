@@ -1,12 +1,9 @@
-"""Where things live: repo paths, stacks per environment, and participant URLs.
+"""Where things live: repo paths, the demo backend, the prod stacks, settings.
 
-Two environments exist:
-
-  standalone  all three participants and the demo backend on this host,
-              fake vault, did:web on host.docker.internal.
-  prod        one participant per server, real Vault, did:web on a domain.
-              `up` runs on the target server itself; the URLs of the other
-              participants come from the repo-root .env.
+eunomia is a hypervisor of instances: authorities and agents. Local ones run
+on this machine from the templates in deployment/instances/; remote ones are
+somebody's server, known by URL. The registry is instances/ (see
+commands/instances.py). Nothing here assumes a fixed set of participants.
 """
 
 from __future__ import annotations
@@ -20,17 +17,16 @@ from . import log
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEPLOYMENT_DIR = REPO_ROOT / "deployment"
+TEMPLATES_DIR = DEPLOYMENT_DIR / "instances"
 VAULT_DIR = REPO_ROOT / "vault"
+CONFIG_DIR = REPO_ROOT / "static" / "config"
 CATALOG_DIR = REPO_ROOT / "static" / "catalog"
 DEMO_DIR = REPO_ROOT / "services" / "demo-factory"
 INSTANCES_DIR = REPO_ROOT / "instances"
 VERSIONS_FILE = REPO_ROOT / "versions.env"
 ENV_FILE = REPO_ROOT / ".env"
 
-ENVIRONMENTS = ("standalone", "prod")
-DATASPACE_NODES = ("authority", "provider", "consumer")
-# The demo backend is not a participant: it is what the provider shares.
-ALL_NODES = DATASPACE_NODES + ("demo",)
+KINDS = ("agent", "authority")
 
 
 def prefix() -> str:
@@ -39,7 +35,7 @@ def prefix() -> str:
 
 
 def container_prefix() -> str:
-    # Every standalone container is named <prefix>-*, which is what teardown sweeps.
+    # Every local container is named <prefix>-*, which is what `down` sweeps.
     return f"{prefix()}-"
 
 
@@ -69,17 +65,31 @@ def port(name: str, default: int) -> int:
         raise log.fail(f"{name}={value!r} is not a port number")
 
 
+def port_range(name: str, default: str) -> Tuple[int, int]:
+    value = os.environ.get(name) or default
+    try:
+        lo, hi = (int(x) for x in value.split("-", 1))
+        return lo, hi
+    except ValueError:
+        raise log.fail(f"{name}={value!r}: expected a range like {default}")
+
+
+def http_ports() -> Tuple[int, int]:
+    """Where local instances get their HTTP port."""
+    return port_range("EUNOMIA_HTTP_PORTS", "1600-1999")
+
+
+def db_ports() -> Tuple[int, int]:
+    """Where local instances get their Postgres port."""
+    return port_range("EUNOMIA_DB_PORTS", "15400-15999")
+
+
 @dataclass(frozen=True)
 class Stack:
-    node: str
+    name: str
     compose: Path
-    # Host ports the stack publishes; checked before `up` and after `down`.
+    # Host ports the stack publishes; checked before starting it.
     ports: Tuple[int, ...]
-    # Path appended to the node URL that answers 200 once the node is ready.
-    readiness: Optional[str]
-    # Agent service in the compose file, and its wallet. Used by `restart`.
-    service: Optional[str] = None
-    wallet: Optional[str] = None
 
 
 def demo_ports() -> Tuple[int, int, int]:
@@ -90,64 +100,16 @@ def demo_ports() -> Tuple[int, int, int]:
     )
 
 
-def stacks(env: str) -> Dict[str, Stack]:
-    demo = Stack("demo", DEMO_DIR / "docker-compose.yaml", demo_ports(), None)
-    if env == "standalone":
-        d = DEPLOYMENT_DIR / "standalone"
-        return {
-            "authority": Stack(
-                "authority",
-                d / "docker-compose.standalone.heimdall.yaml",
-                (1500, port("EUNOMIA_AUTHORITY_DB_PORT", 1450)),
-                "/readiness",
-                "heimdall",
-                "heimdall-fafnir-wallet",
-            ),
-            "provider": Stack(
-                "provider",
-                d / "docker-compose.standalone.provider.yaml",
-                (1200, port("EUNOMIA_PROVIDER_DB_PORT", 1400)),
-                "/api/v1/readiness",
-                "provider",
-                "provider-fafnir-wallet",
-            ),
-            "consumer": Stack(
-                "consumer",
-                d / "docker-compose.standalone.consumer.yaml",
-                (1100, port("EUNOMIA_CONSUMER_DB_PORT", 1300)),
-                "/api/v1/readiness",
-                "consumer",
-                "consumer-fafnir-wallet",
-            ),
-            "demo": demo,
-        }
+def demo_stack() -> Stack:
+    return Stack("demo", DEMO_DIR / "docker-compose.yaml", demo_ports())
+
+
+def prod_stacks() -> Dict[str, Stack]:
+    """One node per server: `eunomia prod up agent|authority` on that server."""
     d = DEPLOYMENT_DIR / "prod"
     return {
-        "authority": Stack(
-            "authority",
-            d / "docker-compose.heimdall.yaml",
-            (443, 8443, 8200),
-            "/readiness",
-            "heimdall",
-            "heimdall-fafnir-wallet",
-        ),
-        "provider": Stack(
-            "provider",
-            d / "docker-compose.provider.yaml",
-            (443, 8200),
-            "/api/v1/readiness",
-            "provider",
-            "provider-fafnir-wallet",
-        ),
-        "consumer": Stack(
-            "consumer",
-            d / "docker-compose.consumer.yaml",
-            (443, 8200),
-            "/api/v1/readiness",
-            "consumer",
-            "consumer-fafnir-wallet",
-        ),
-        "demo": demo,
+        "agent": Stack("agent", d / "docker-compose.agent.yaml", (443, 8200)),
+        "authority": Stack("authority", d / "docker-compose.heimdall.yaml", (443, 8443, 8200)),
     }
 
 
@@ -198,91 +160,16 @@ def versions() -> Dict[str, str]:
 
 
 # ---------------------------------------------------------------------------
-# Participant URLs
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class Endpoints:
-    """How to reach each participant.
-
-    The plain URLs are how this process reaches the agents. The docker_* ones
-    are how the agents reach each other: those travel inside DSP and GNAP
-    messages, so in standalone 127.0.0.1 there would point a container at
-    itself. In prod both are the public URL.
-    """
-
-    authority: str
-    provider: str
-    consumer: str
-    docker_authority: str
-    docker_provider: str
-    docker_consumer: str
-
-    def url(self, node: str) -> str:
-        return getattr(self, node)
-
-    def docker_url(self, node: str) -> str:
-        return getattr(self, f"docker_{node}")
-
-
-STANDALONE_PORTS = {"authority": 1500, "provider": 1200, "consumer": 1100}
-
-
-def _standalone_defaults() -> Dict[str, str]:
-    host = local_host()
-    out = {f"{n.upper()}_URL": f"http://{host}:{p}" for n, p in STANDALONE_PORTS.items()}
-    out.update({f"DOCKER_{n.upper()}_URL": f"http://host.docker.internal:{p}" for n, p in STANDALONE_PORTS.items()})
-    return out
-
-
-def node_url(env: str, node: str) -> str:
-    """One participant's URL. Unlike endpoints(), needs only that node's setting."""
-    name = f"{node.upper()}_URL"
-    if env == "standalone":
-        return (os.environ.get(name) or _standalone_defaults()[name]).rstrip("/")
-    value = os.environ.get(name)
-    if not value:
-        raise log.fail(f"{name} is not set. Prod has no default URLs: add it to .env.")
-    return value.rstrip("/")
-
-
-def endpoints(env: str) -> Endpoints:
-    def pick(name: str, fallback: Optional[str] = None) -> str:
-        value = os.environ.get(name) or fallback
-        if not value:
-            raise log.fail(f"{name} is not set. Prod has no default URLs: add it to .env.")
-        return value.rstrip("/")
-
-    if env == "standalone":
-        defaults = _standalone_defaults()
-        return Endpoints(
-            *(pick(f"{n.upper()}_URL", defaults[f"{n.upper()}_URL"]) for n in DATASPACE_NODES),
-            *(pick(f"DOCKER_{n.upper()}_URL", defaults[f"DOCKER_{n.upper()}_URL"]) for n in DATASPACE_NODES),
-        )
-
-    authority, provider, consumer = (pick(f"{n}_URL") for n in ("AUTHORITY", "PROVIDER", "CONSUMER"))
-    return Endpoints(
-        authority,
-        provider,
-        consumer,
-        pick("DOCKER_AUTHORITY_URL", authority),
-        pick("DOCKER_PROVIDER_URL", provider),
-        pick("DOCKER_CONSUMER_URL", consumer),
-    )
-
-
-# ---------------------------------------------------------------------------
-# Demo backend (the factory the provider shares)
+# Demo backend (the factory an agent can share)
 # ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class Demo:
-    """The factory's URLs, seen from this process and from the provider agent.
+    """The factory's URLs, seen from this process and from the agents.
 
-    The docker_* ones go into the connector instances: the provider agent is
-    the one that calls the factory, from inside its container.
+    The docker_* ones go into the connector instances: the agent that shares
+    the factory is the one that calls it, from inside its container.
     """
 
     static_api: str
@@ -319,3 +206,8 @@ def demo() -> Demo:
         url("DOCKER_FACTORY_DYNAMIC_URL", f"http://host.docker.internal:{dynamic}"),
         url("DOCKER_FACTORY_KEYCLOAK_URL", f"http://host.docker.internal:{keycloak}"),
     )
+
+
+def optional(name: str) -> Optional[str]:
+    value = os.environ.get(name)
+    return value or None

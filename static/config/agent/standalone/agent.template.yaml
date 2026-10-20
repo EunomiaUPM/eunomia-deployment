@@ -1,10 +1,14 @@
+# Template for a local agent, rendered by `eunomia agent add` into
+# instances/<name>/config/agent.yaml. ${NAME}, ${PORT}, ${LEGAL_NAME} and ${VAT}
+# are filled in per instance; db, redis and wallet are the service names of
+# deployment/instances/docker-compose.agent.yaml.
 # ==========================
 # COMMON ANCHORS
 # ==========================
 http_host: &http_host
-  protocol: "https"
-  url: "your_domain"
-  port: null
+  protocol: "http"
+  url: "host.docker.internal"
+  port: "${PORT}"
   internal_port: null
 
 hosts_default: &hosts_default
@@ -24,23 +28,23 @@ policy_templates_folder: &policy_templates_folder "/app/static/policy_templates"
 
 cache_config: &cache_config
   cache_type: Redis
-  url: "provider-redis"
+  url: "redis"
   port: "6379"
   user: "default"
-  password: "ds_core_provider_redis"
+  password: "ds_core_agent_redis"
 
 common_config: &common_config
   hosts: *hosts_default
   db:
     db_type: Postgres
-    url: "provider-db"
+    url: "db"
     port: "5432"
   api:
     version: *api_version
     openapi_path: "/app/static/specs/openapi/merged_openapi.json"
   connection:
-    is_prod: true
-    is_vault_real: true
+    is_prod: false
+    is_vault_real: false
     has_tls_proxy: false
 
 # ==========================
@@ -73,24 +77,44 @@ ssi_auth:
     api:
       http:
         protocol: "http"
-        url: "provider-fafnir-wallet"
+        url: "wallet"
         port: "7001"
         internal_port: null
       grpc: null
       graphql: null
   client_config:
-    class_id: "Provider"
+    class_id: "${NAME}"
     display: null
   verify_req_config:
     is_cert_allowed: false
     auto_approve_cert: false
-    vcs_requested: ["DataSpaceParticipant"]
+    # Peers that connect need the Gaia-X label credential: `eunomia onboard`
+    # gets it for every agent, so any agent can connect to any other.
+    vcs_requested: ["gx:labelcredential"]
   did_config:
-    type: Web
-    domain: "your_domain"
-    path: null
-    port: null
-  gaia_config: null
+    # did:jwk, not did:web: a did:web on host.docker.internal carries the port
+    # as %3A, and the agent then fails to look its peers up by DID.
+    type: Jwk
+  gaia_config:
+    legal_person:
+      name: "${LEGAL_NAME}"
+      description: "${NAME}, an agent of the EUNOMIA data space"
+      registration_number:
+        kind: "VatId"
+        value: "${VAT}"
+        country_code: "ES"
+      legal_address:
+        country_code: "ES"
+        country_name: "Spain"
+        locality: "Madrid"
+        postal_code: "28040"
+        street_address: "Av. Complutense, 30, Moncloa - Aravaca"
+      headquarters_address:
+        country_code: "ES"
+        country_name: "Spain"
+        locality: "Madrid"
+        postal_code: "28040"
+        street_address: "Av. Complutense, 30, Moncloa - Aravaca"
 
 # ==========================
 # CONTRACTS
@@ -116,7 +140,7 @@ transfer:
 # ==========================
 gateway:
   common: *common_config
-  is_production: true
+  is_production: false
   transfer: *min_known_config
   contracts: *min_known_config
   catalog: *min_known_config

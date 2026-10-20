@@ -10,14 +10,13 @@
     "cpus": 4,
     "memory": "8gb"
   },
-  "forwardPorts": [1500, 1200, 1100, 1210, 1220, 1230],
+  // Instances take free ports in 1600-1999 and are forwarded as they appear.
+  "forwardPorts": [1210, 1220, 1230],
   "portsAttributes": {
-    "1500": { "label": "Authority" },
-    "1200": { "label": "Provider" },
-    "1100": { "label": "Consumer" },
     "1210": { "label": "Factory, static API" },
     "1220": { "label": "Factory, dynamic API" },
-    "1230": { "label": "Factory Keycloak" }
+    "1230": { "label": "Factory Keycloak" },
+    "1600-1999": { "label": "EUNOMIA instance", "onAutoForward": "silent" }
   },
   "postCreateCommand": "./eunomia doctor"
 }

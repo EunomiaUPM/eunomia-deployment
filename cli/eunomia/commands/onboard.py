@@ -1,18 +1,16 @@
-"""Onboarding: link wallets, get credentials from the authority, connect.
+"""Onboarding: link wallets, get credentials from an authority, connect.
 
-  1. Wallets      every participant links its Fafnir wallet
-  2. Register     provider and consumer get a DataSpaceParticipant credential
-  3. Gaia-X       the consumer gets the legal VC (gx:VatId), generates its
+  1. Wallets      the agent and the authority link their Fafnir wallets
+  2. Register     the agent gets a DataSpaceParticipant credential
+  3. Gaia-X       the agent gets the legal VC (gx:VatId), generates its
                   self-attested Gaia-X VCs and gets the label VC
-                  (gx:LabelCredential): the provider only accepts consumers
-                  that hold it
-  4. Connect      GNAP handshake that gives the consumer a token for the provider
+                  (gx:LabelCredential): agents only accept peers that hold it
+  4. Connect      GNAP handshake that gives one agent a token for another,
+                  run per pair with `eunomia connect`
 
-Every step checks first and skips when already done, so the whole sequence is
-safe to re-run after a redeploy or an interrupted run.
-
-The functions take Peers rather than the standalone Endpoints, so the extra
-connectors and authorities of `eunomia connector add` reuse them.
+Every agent gets all three credentials, so any agent can connect to any other
+and play either role in an exchange. Every step checks first and skips when
+already done, so the whole sequence is safe to re-run.
 """
 
 from __future__ import annotations
@@ -22,7 +20,6 @@ from dataclasses import dataclass
 from typing import Callable, List
 
 from .. import http, log
-from ..settings import Endpoints
 
 PARTICIPANT_VC = "DataSpaceParticipant_jwt_vc_json"
 VAT_VC = "gx_VatId_jwt_vc_json"
@@ -36,14 +33,6 @@ class Peer:
     name: str
     url: str
     docker_url: str
-
-
-def peers(ep: Endpoints) -> "tuple[Peer, Peer, Peer]":
-    return (
-        Peer("authority", ep.authority, ep.docker_authority),
-        Peer("provider", ep.provider, ep.docker_provider),
-        Peer("consumer", ep.consumer, ep.docker_consumer),
-    )
 
 
 def did(base_url: str) -> str:
@@ -127,17 +116,17 @@ def register(participant: Peer, authority: Peer) -> None:
     request_vc(participant, authority, PARTICIPANT_VC, "cert")
 
 
-def gaia(consumer: Peer, authority: Peer) -> None:
-    """Gaia-X credentials for the consumer: legal VC, self-attested VCs, label VC."""
-    log.step(f"Gaia-X credentials for {consumer.name} from {authority.name}")
+def gaia(agent: Peer, authority: Peer) -> None:
+    """Gaia-X credentials for an agent: legal VC, self-attested VCs, label VC."""
+    log.step(f"Gaia-X credentials for {agent.name} from {authority.name}")
     authority_did = did(authority.url)
-    if holds(consumer, authority_did, LABEL_VC):
-        log.info(f"{consumer.name} already holds {LABEL_VC}, skipping")
+    if holds(agent, authority_did, LABEL_VC):
+        log.info(f"{agent.name} already holds {LABEL_VC}, skipping")
         return
     # The authority reads the VAT number from the organizationIdentifier of
     # the participant's certificate (vault/<role>/secrets/cert.pem.example).
     request_vc(
-        consumer,
+        agent,
         authority,
         VAT_VC,
         "cert",
@@ -145,31 +134,35 @@ def gaia(consumer: Peer, authority: Peer) -> None:
         "authority must have the EcoAuthority role to issue Gaia-X credentials.",
     )
     log.info("Generating the self-attested Gaia-X VCs")
-    http.checked("POST", f"{consumer.url}/api/v1/gaia/generate")
-    request_vc(consumer, authority, LABEL_VC, "oidc4vp")
+    http.checked("POST", f"{agent.url}/api/v1/gaia/generate")
+    request_vc(agent, authority, LABEL_VC, "oidc4vp")
 
 
-def _has_token(consumer: Peer, provider_did: str) -> bool:
+def has_token(source: Peer, target_did: str) -> bool:
     # Check the token, not the mate: a tokenless mate row means the handshake
-    # never completed, and the provider then answers 401 to every DSP call
-    # (surfaced as 502 by the consumer BFF).
-    mates = http.get_json(f"{consumer.url}/api/v1/mates/all") or []
-    return any(m.get("participant_id") == provider_did and (m.get("token") or "") for m in mates)
+    # never completed, and the target then answers 401 to every DSP call
+    # (surfaced as 502 by the source agent's BFF).
+    mates = http.get_json(f"{source.url}/api/v1/mates/all") or []
+    return any(m.get("participant_id") == target_did and (m.get("token") or "") for m in mates)
 
 
-def _connection_status(consumer: Peer, provider_did: str) -> str:
-    rows = http.get_json(f"{consumer.url}/api/v1/peer-connection/request/all") or []
-    rows = [r for r in rows if r.get("participant_id") == provider_did]
+def _connection_status(source: Peer, target_did: str) -> str:
+    rows = http.get_json(f"{source.url}/api/v1/peer-connection/request/all") or []
+    rows = [r for r in rows if r.get("participant_id") == target_did]
     rows.sort(key=lambda r: r.get("created_at") or "")
     return rows[-1].get("status", "unknown") if rows else "no request"
 
 
-def connect(consumer: Peer, provider: Peer) -> None:
-    """GNAP handshake that mints the consumer's mate token for the provider."""
-    log.step(f"Connecting {consumer.name} to {provider.name}")
-    provider_did = did(provider.url)
-    if _has_token(consumer, provider_did):
-        log.info(f"{consumer.name} already holds a token for {provider.name}, skipping")
+def connect(source: Peer, target: Peer) -> None:
+    """GNAP handshake that gives `source` a token to talk to `target`.
+
+    The token works one way: for `target` to call `source` too (to browse its
+    catalog, say), connect them the other way round as well.
+    """
+    log.step(f"Connecting {source.name} to {target.name}")
+    target_did = did(target.url)
+    if has_token(source, target_did):
+        log.info(f"{source.name} already holds a token for {target.name}, skipping")
         return
 
     # POST /api/v1/mates is NOT equivalent: it only inserts the row. The
@@ -177,31 +170,36 @@ def connect(consumer: Peer, provider: Peer) -> None:
     # actions accepts "talk" and "request-vc".
     http.checked(
         "POST",
-        f"{consumer.url}/api/v1/peer-connection/connect",
+        f"{source.url}/api/v1/peer-connection/connect",
         {
-            "id": provider_did,
-            "nick": provider.name,
-            "url": f"{provider.docker_url}/api/v1/gate/access",
+            "id": target_did,
+            "nick": target.name,
+            "url": f"{target.docker_url}/api/v1/gate/access",
             "actions": ["talk"],
             "auto": True,
         },
     )
-    if not _poll(lambda: _has_token(consumer, provider_did)):
-        status = _connection_status(consumer, provider_did)
+    if not _poll(lambda: has_token(source, target_did)):
+        status = _connection_status(source, target_did)
         raise log.fail(
-            f"The connection from {consumer.name} to {provider.name} is {status!r}, not Approved.\n"
-            f"The provider only accepts consumers holding gx:LabelCredential: run\n"
-            f"  eunomia gaia --consumer {consumer.name}\n"
-            f"and look at the logs: eunomia logs {provider.name}"
+            f"The connection from {source.name} to {target.name} is {status!r}, not Approved.\n"
+            f"{target.name} only accepts agents holding gx:LabelCredential: onboard {source.name} first\n"
+            f"  eunomia onboard {source.name}\n"
+            f"and look at the logs: eunomia logs {target.name}"
         )
-    log.ok(f"{consumer.name} is connected to {provider.name}")
+    log.ok(f"{source.name} is connected to {target.name}")
 
 
-def run_all(ep: Endpoints) -> None:
-    authority, provider, consumer = peers(ep)
-    link_wallets([authority, provider, consumer])
-    register(consumer, authority)
-    register(provider, authority)
-    gaia(consumer, authority)
-    connect(consumer, provider)
-    log.ok("\nOnboarding complete")
+def onboard_agent(agent: Peer, authority: Peer, with_gaia: bool = True) -> None:
+    """Everything an agent needs from an authority: wallet, membership, Gaia-X.
+
+    Only an authority with the eco role issues Gaia-X credentials; with any
+    other the agent gets membership only.
+    """
+    link_wallets([authority, agent])
+    register(agent, authority)
+    if with_gaia:
+        gaia(agent, authority)
+    else:
+        log.info(f"{authority.name} does not issue Gaia-X credentials: {agent.name} gets membership only")
+    log.ok(f"\n{agent.name} is onboarded with {authority.name}")

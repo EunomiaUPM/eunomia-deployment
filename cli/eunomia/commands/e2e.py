@@ -1,8 +1,10 @@
-"""End-to-end test: DSP contract negotiation, then a pull and a push transfer.
+"""End-to-end test between two agents: DSP contract negotiation, then a pull
+and a push transfer.
 
-Assumes the deployment is up, onboarded and its catalog populated, which is
-what `eunomia up` leaves behind. It checks those preconditions first and
-names the missing one, instead of failing later with an opaque 502.
+Any two agents will do: one plays the consumer and the other the provider in
+this exchange. The provider needs the demo catalog (`eunomia catalog populate
+<provider>`); both need to be onboarded. The test checks those preconditions
+first and names the missing one, instead of failing later with an opaque 502.
 
   Discovery     participant DIDs, consumer<->provider token, callback path,
                 catalog request
@@ -33,8 +35,10 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 from .. import http, log, settings
-from ..settings import Demo, Endpoints
+from ..settings import Demo
 from . import catalog as catalog_cmd
+from . import onboard
+from .onboard import Peer
 
 VERBOSE = False
 
@@ -80,7 +84,7 @@ def _pick_dataset(datasets: List[Dict[str, Any]], wanted: str, is_default: bool)
     """Datasets without a policy cannot be negotiated, so they are never candidates."""
     usable = [d for d in datasets if d.get("hasPolicy")]
     if not usable:
-        raise log.fail("The catalog has no dataset with a policy. Run: eunomia catalog populate")
+        raise log.fail("The catalog has no dataset with a policy. Load the demo into it: eunomia catalog populate <agent>")
     needle = wanted.casefold()
     for d in usable:
         if needle in (d.get("title") or "").casefold() or needle in d.get("@id", "").casefold():
@@ -142,14 +146,14 @@ def _find_dataplane_url(body: Any) -> Optional[str]:
     return found[0] if found else None
 
 
-def _check_pull(proxy_url: str, demo: Demo) -> None:
+def _check_pull(proxy_url: str, demo: Demo, provider: str) -> None:
     log.step("Step 5 · Pulling the robots through the dataplane proxy")
     log.info(f"GET {proxy_url}")
     r = http.request("GET", proxy_url, timeout=90)
     if not r.ok:
         raise log.fail(
             f"Dataplane proxy -> HTTP {r.status}\n{r.text[:800]}\n"
-            "The provider could not fetch from the factory. Look at: eunomia logs provider  and  eunomia logs demo"
+            f"{provider} could not fetch from the factory. Look at: eunomia logs {provider}  and  eunomia logs demo"
         )
     data = r.json()
     # The factory answers with a JSON array; an object here is an error
@@ -248,33 +252,36 @@ def _describe(event: Any) -> str:
 
 
 class Session:
-    """One consumer<->provider pair after discovery: what every transfer needs."""
+    """Two agents, consumer and provider in this exchange, after discovery."""
 
-    def __init__(self, ep: Endpoints) -> None:
-        self.ep = ep
-        self.consumer = ep.consumer
-        self.provider = ep.provider
+    def __init__(self, consumer: Peer, provider: Peer) -> None:
+        self.consumer_peer = consumer
+        self.provider_peer = provider
+        self.consumer = consumer.url
+        self.provider = provider.url
         self.provider_did = ""
         self.provider_dsp = ""
         self.callback = ""
 
     def discover(self) -> List[Dict[str, Any]]:
-        log.step("Step 1 · Discovering participants")
+        c, p = self.consumer_peer, self.provider_peer
+        log.step(f"Step 1 · {c.name} (consumer) and {p.name} (provider)")
         consumer_did = http.get_json(f"{self.consumer}/api/v1/mates/myself")["participant_id"]
         self.provider_did = http.get_json(f"{self.provider}/api/v1/mates/myself")["participant_id"]
-        log.info(f"Consumer DID : {consumer_did}")
-        log.info(f"Provider DID : {self.provider_did}")
+        log.info(f"{c.name:<9} DID: {consumer_did}")
+        log.info(f"{p.name:<9} DID: {self.provider_did}")
 
-        mates = http.get_json(f"{self.consumer}/api/v1/mates/all") or []
-        if not any(m.get("participant_id") == self.provider_did and (m.get("token") or "") for m in mates):
-            raise log.fail("The consumer holds no token for the provider. Run: eunomia onboard")
-        log.ok("Consumer is connected to the provider")
+        # Connecting is idempotent: it skips when the token is already there.
+        if onboard.has_token(c, self.provider_did):
+            log.ok(f"{c.name} is connected to {p.name}")
+        else:
+            onboard.connect(c, p)
 
         version = http.get_json(f"{self.consumer}/.well-known/dspace-version/2025-1")
-        self.callback = self.ep.docker_consumer + version["path"]
+        self.callback = c.docker_url + version["path"]
         log.info(f"Consumer callback: {self.callback}")
 
-        log.step("Step 2 · Requesting the provider catalog")
+        log.step(f"Step 2 · Requesting the catalog of {p.name}")
         cat = _rpc(
             f"{self.consumer}/dsp/current/catalog/rpc/setup-catalog-request",
             {"associatedAgentPeer": self.provider_did, "filter": [], "noCache": True},
@@ -282,7 +289,7 @@ class Session:
         response = cat.get("response") or {}
         datasets = response.get("dataset") or []
         if not datasets:
-            raise log.fail("The provider catalog is empty. Run: eunomia catalog populate")
+            raise log.fail(f"The catalog of {p.name} is empty. Load the demo into it: eunomia catalog populate {p.name}")
         self.provider_dsp = _dig(response, "service", "endpointURL")
         if not self.provider_dsp:
             raise log.fail("The catalog response carries no service endpointURL")
@@ -389,7 +396,8 @@ def _choose(session: Session, datasets: List[Dict[str, Any]], dataset: Optional[
 
 
 def run(
-    ep: Endpoints,
+    consumer: Peer,
+    provider: Peer,
     demo: Demo,
     dataset: Optional[str] = None,
     list_datasets: bool = False,
@@ -401,7 +409,7 @@ def run(
 ) -> int:
     global VERBOSE
     VERBOSE = verbose
-    session = Session(ep)
+    session = Session(consumer, provider)
     datasets = session.discover()
 
     if list_datasets:
@@ -418,7 +426,7 @@ def run(
     log.step("Step 4 · Pull transfer")
     pids = session.request_transfer(agreement, "HTTP_PULL")
     dataplane = _find_dataplane_url(session.start(pids))
-    proxy_url = _rewrite_authority(dataplane, ep.provider) if dataplane else None
+    proxy_url = _rewrite_authority(dataplane, provider.url) if dataplane else None
     log.info(f"      dataplane: {proxy_url or 'none in the start response'}")
 
     # -- Step 5 · Data --------------------------------------------------------
@@ -427,7 +435,7 @@ def run(
     elif not proxy_url:
         raise log.fail("The transfer started but carried no dataplane address to pull from")
     else:
-        _check_pull(proxy_url, demo)
+        _check_pull(proxy_url, demo, provider.name)
 
     # -- Step 6 · Lifecycle ---------------------------------------------------
     if suspend:
@@ -459,9 +467,9 @@ def run(
             session.complete(push_pids)
         if pushed is None:
             raise log.fail(
-                f"No event reached :{sink.port} within the timeout. The provider subscribes to the factory and\n"
-                "forwards each event to the consumer, which POSTs it to the endpoint. Look at:\n"
-                "  eunomia logs demo   eunomia logs provider   eunomia logs consumer\n"
+                f"No event reached :{sink.port} within the timeout. {provider.name} subscribes to the factory and\n"
+                f"forwards each event to {consumer.name}, which POSTs it to the endpoint. Look at:\n"
+                f"  eunomia logs demo   eunomia logs {provider.name}   eunomia logs {consumer.name}\n"
                 "On Linux, the firewall may block containers from reaching the host (allow docker0)."
             )
         log.ok(f"  event received: {_describe(pushed)}")
@@ -469,6 +477,8 @@ def run(
     log.step("=" * 60)
     log.ok(
         "END-TO-END TEST PASSED\n"
+        f"  Consumer   : {consumer.name}\n"
+        f"  Provider   : {provider.name}\n"
         f"  Dataset    : {title}\n"
         f"  Agreement  : {agreement}\n"
         f"  Pull       : {pids['consumerPid']} / {pids['providerPid']}"

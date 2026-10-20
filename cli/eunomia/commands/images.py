@@ -26,20 +26,27 @@ def resolve(ref: str, values: Dict[str, str]) -> str:
     return VAR_RE.sub(lambda m: values.get(m.group(1), m.group(0)), ref)
 
 
-def pinned(env: str) -> Dict[str, Set[str]]:
+def compose_files() -> "list":
+    """Every compose file eunomia runs: instance templates, prod and the demo."""
+    files = sorted(settings.TEMPLATES_DIR.glob("docker-compose.*.yaml"))
+    files += [s.compose for s in settings.prod_stacks().values()]
+    return files + [settings.demo_stack().compose]
+
+
+def pinned() -> Dict[str, Set[str]]:
     """image reference -> compose files that use it. Locally built images are left out."""
     values = settings.versions()
     found: Dict[str, Set[str]] = {}
-    for stack in settings.stacks(env).values():
-        if not stack.compose.is_file():
+    for compose_file in compose_files():
+        if not compose_file.is_file():
             continue
-        for line in stack.compose.read_text().splitlines():
+        for line in compose_file.read_text().splitlines():
             m = IMAGE_RE.match(line)
             if m:
                 ref = resolve(next(g for g in m.groups() if g), values)
                 if ref.endswith(":local"):
                     continue
-                found.setdefault(ref, set()).add(stack.compose.name)
+                found.setdefault(ref, set()).add(str(compose_file.relative_to(settings.REPO_ROOT)))
     return found
 
 
@@ -79,8 +86,8 @@ def _tags(registry: str, repo: str) -> Optional[List[Tuple[str, datetime]]]:
     return None
 
 
-def show(env: str, check: bool) -> int:
-    images = pinned(env)
+def show(check: bool) -> int:
+    images = pinned()
     for ref in sorted(images):
         registry, repo, tag = _split(ref)
         files = ", ".join(sorted(images[ref]))

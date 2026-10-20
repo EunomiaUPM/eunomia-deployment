@@ -1,3 +1,4 @@
+# Template for a local agent's wallet: instances/<name>/config/fafnir.yaml
 http_host: &http_host
   protocol: "http"
   url: "127.0.0.1"
@@ -11,7 +12,7 @@ hosts:
 
 db_config:
   db_type: Postgres
-  url: "consumer-db"
+  url: "db"
   port: "5432"
 
 is_docker: true
