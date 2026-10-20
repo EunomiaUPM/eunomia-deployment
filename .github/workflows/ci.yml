@@ -69,33 +69,37 @@ jobs:
             docker compose --env-file versions.env -f "$f" config -q
           done
           # The instance templates need the variables `eunomia connector add` writes.
-          export INSTANCE=ci ROLE=consumer HTTP_PORT=1600 DB_PORT=15400 REDIS_PASSWORD=x
+          export INSTANCE=ci CONTAINER=eunomia-ci HTTP_PORT=1600 DB_PORT=15400 REDIS_PASSWORD=x
           for f in deployment/instances/*.yaml; do
             echo "== $f"
             docker compose --env-file versions.env -p eunomia-ci -f "$f" config -q
           done
 
-  # The whole standalone deployment, from nothing to a pull and a push transfer.
+  # A whole data space from nothing: an authority, two agents and the demo,
+  # with each agent taking each role in turn.
   e2e:
     runs-on: ubuntu-latest
     needs: [unit, compose-config]
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - run: ./eunomia doctor
-      - run: ./eunomia up
-      - run: ./eunomia e2e
-      - name: Extra connectors talk to each other too
+      - run: ./eunomia authority add authority
+      - run: ./eunomia agent add alice
+      - run: ./eunomia agent add bob
+      - run: ./eunomia demo up
+      - name: bob negotiates for the catalog of alice
         run: |
-          ./eunomia connector add ci-seller --role provider --onboard
-          ./eunomia connector add ci-buyer --onboard
-          ./eunomia gaia --consumer ci-buyer --provider ci-seller
-          ./eunomia catalog populate --provider ci-seller
-          ./eunomia e2e --consumer ci-buyer --provider ci-seller --no-suspend
+          ./eunomia catalog populate alice
+          ./eunomia e2e --consumer bob --provider alice
+      - name: and the other way round
+        run: |
+          ./eunomia catalog populate bob
+          ./eunomia e2e --consumer alice --provider bob --no-suspend
       - name: Logs on failure
         if: failure()
         run: |
           ./eunomia status || true
-          for n in authority provider consumer demo; do ./eunomia logs "$n" --tail 300 || true; done
+          for n in authority alice bob demo; do ./eunomia logs "$n" --tail 300 || true; done
       - run: ./eunomia down --yes
         if: always()
