@@ -1,0 +1,5 @@
+{
+  "dctTitle": "Factory Robots Dataset",
+  "dctDescription": "The robots of the demo factory: model, production line and yearly production measures (cycles, uptime, energy, parts produced, defect rate, OEE, MTBF, maintenance, temperature), plus the real-time events the robots emit.",
+  "catalogId": "__CATALOG_ID__"
+}

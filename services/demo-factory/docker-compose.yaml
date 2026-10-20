@@ -1,0 +1,142 @@
+# Demo backend of the provider: a factory with robots.
+#
+#   static-api   :1210  pull: GET /robots, /robots/:id/measures, /measures/:id
+#   dynamic-api  :1220  push: POST /subscriptions/subscribe, then robot events
+#   keycloak     :1230  realm "factory", client factory-client / factory-secret,
+#                       user testuser / password (demo credentials)
+#
+# `eunomia up` starts it with the provider. The provider agent reaches it at
+# http://host.docker.internal:<port>, the connector instances in static/catalog/
+# point there.
+
+name: ${EUNOMIA_PREFIX:-eunomia}-demo-factory
+
+x-api: &api
+  build: .
+  image: eunomia-demo-factory:local
+  environment: &api-env
+    DATABASE_HOST: factory-db
+    DATABASE_PORT: "5432"
+    DATABASE_USER: factory
+    DATABASE_PASS: factory
+    DATABASE_NAME: factory
+    STATIC_SERVER_HOST: 0.0.0.0
+    STATIC_SERVER_PORT: "8081"
+    DYNAMIC_SERVER_HOST: 0.0.0.0
+    DYNAMIC_SERVER_PORT: "8082"
+    KEYCLOAK_URL: http://factory-keycloak:8080
+    KEYCLOAK_REALM: factory
+    KEYCLOAK_CLIENT_ID: factory-client
+    GIN_MODE: release
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+services:
+  factory-db:
+    container_name: "${EUNOMIA_PREFIX:-eunomia}-factory-db"
+    image: postgres:18
+    restart: always
+    environment:
+      POSTGRES_USER: factory
+      POSTGRES_PASSWORD: factory
+      POSTGRES_DB: factory
+    volumes:
+      - factory-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U factory"]
+      interval: 5s
+      retries: 20
+
+  # One-shot: five robots with four years of measures each, on an empty database
+  factory-seed:
+    <<: *api
+    container_name: "${EUNOMIA_PREFIX:-eunomia}-factory-seed"
+    command: ["fake"]
+    restart: "no"
+    depends_on:
+      factory-db:
+        condition: service_healthy
+
+  factory-static-api:
+    <<: *api
+    container_name: "${EUNOMIA_PREFIX:-eunomia}-factory-static-api"
+    command: ["serve"]
+    restart: always
+    ports:
+      - "${EUNOMIA_FACTORY_STATIC_PORT:-1210}:8081"
+    depends_on:
+      factory-seed:
+        condition: service_completed_successfully
+      factory-keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/docs"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
+
+  factory-dynamic-api:
+    <<: *api
+    container_name: "${EUNOMIA_PREFIX:-eunomia}-factory-dynamic-api"
+    command: ["metrics"]
+    restart: always
+    ports:
+      - "${EUNOMIA_FACTORY_DYNAMIC_PORT:-1220}:8082"
+    depends_on:
+      factory-db:
+        condition: service_healthy
+      factory-keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8082/docs"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
+
+  factory-keycloak-db:
+    container_name: "${EUNOMIA_PREFIX:-eunomia}-factory-keycloak-db"
+    image: postgres:18
+    restart: always
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    volumes:
+      - keycloak-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 5s
+      retries: 20
+
+  factory-keycloak:
+    container_name: "${EUNOMIA_PREFIX:-eunomia}-factory-keycloak"
+    image: quay.io/keycloak/keycloak:26.1
+    command: ["start-dev", "--import-realm"]
+    restart: always
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://factory-keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "${EUNOMIA_FACTORY_KEYCLOAK_PORT:-1230}:8080"
+    volumes:
+      - ./config/keycloak/fast-setup-realm.json:/opt/keycloak/data/import/realm.json:ro
+    depends_on:
+      factory-keycloak-db:
+        condition: service_healthy
+    healthcheck:
+      # The image has no curl or wget; bash can open the socket itself.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+
+volumes:
+  factory-data:
+  keycloak-data:

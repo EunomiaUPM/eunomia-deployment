@@ -1,0 +1,19 @@
+{
+  "templateName": "__CONN_PUSH_NAME__",
+  "templateVersion": "__CONN_PUSH_VERSION__",
+  "distributionId": "__DISTRIBUTION_PUSH_ID__",
+  "metadata": {
+    "description": "HTTP Push connector (OAuth2 password grant against the factory Keycloak). Subscribes to the robot events at POST /subscriptions/subscribe and unsubscribes at POST /subscriptions/unsubscribe/{id}.",
+    "ownerId": "DEMO-FACTORY"
+  },
+  "parameters": {
+    "SUB_URL": "__DYNAMIC_API_URL__/subscriptions/subscribe",
+    "UNSUB_URL": "__DYNAMIC_API_URL__/subscriptions/unsubscribe",
+    "EVENT_TYPE": "robot_temperature",
+    "USER_NAME": "testuser",
+    "USER_PASS": "password",
+    "TOKEN_URL": "__KEYCLOAK_URL__/realms/factory/protocol/openid-connect/token",
+    "CLIENT_ID": "factory-client",
+    "CLIENT_SECRET": "factory-secret"
+  }
+}
