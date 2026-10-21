@@ -31,6 +31,7 @@
   ],
   "users": [
     {
+      "id": "179ddecb-917b-5890-9332-2436803ff178",
       "username": "john.doe",
       "enabled": true,
       "emailVerified": true,
@@ -49,6 +50,7 @@
       ]
     },
     {
+      "id": "b9674d86-7192-5048-86f6-5ef34877bf93",
       "username": "jane.doe",
       "enabled": true,
       "emailVerified": true,
@@ -67,6 +69,7 @@
       ]
     },
     {
+      "id": "702c2969-b356-52f7-8730-669f4b0daf29",
       "username": "mary.major",
       "enabled": true,
       "emailVerified": true,
@@ -85,6 +88,7 @@
       ]
     },
     {
+      "id": "2150efc0-15c5-5247-8c87-031d2d6bb7d2",
       "username": "richard.roe",
       "enabled": true,
       "emailVerified": true,
@@ -103,6 +107,7 @@
       ]
     },
     {
+      "id": "61757902-629b-52f6-bbb4-9771e592db61",
       "username": "service-account-cli",
       "enabled": true,
       "emailVerified": true,

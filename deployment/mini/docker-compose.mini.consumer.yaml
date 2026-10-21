@@ -25,7 +25,7 @@ services:
       --requirepass ds_core_consumer_redis
       --user admin on >ds_core_consumer_redis ~* +@all
 
-  fafnir-setup:
+  consumer-fafnir-setup:
     container_name: "consumer-fafnir-setup"
     image: "rmenendez8/fafnir:v0.3.0"
     restart: "no"
@@ -44,12 +44,12 @@ services:
       - --env-file
       - /app/static/fafnir/config.yaml
 
-  fafnir-wallet:
+  consumer-fafnir-wallet:
     container_name: "consumer-fafnir-wallet"
     image: "rmenendez8/fafnir:v0.3.0"
     restart: always
     depends_on:
-      fafnir-setup:
+      consumer-fafnir-setup:
         condition: service_completed_successfully
     volumes:
       - ./../../static/config/fafnir/consumer.yaml:/app/static/fafnir/config.yaml
@@ -114,7 +114,7 @@ services:
         condition: service_started
       consumer-redis:
         condition: service_started
-      fafnir-wallet:
+      consumer-fafnir-wallet:
         condition: service_healthy
     env_file:
       - ./../../static/envs/consumer/core.env.example

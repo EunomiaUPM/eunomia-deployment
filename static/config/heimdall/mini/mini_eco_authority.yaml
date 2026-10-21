@@ -31,7 +31,7 @@ wallet_config:
   api:
     http:
       protocol: 'http'
-      url: 'fafnir-wallet'
+      url: 'heimdall-fafnir-wallet'
       port: '7001'
     grpc: null
     graphql: null

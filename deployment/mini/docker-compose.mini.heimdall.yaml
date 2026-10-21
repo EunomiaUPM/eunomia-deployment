@@ -14,8 +14,8 @@ services:
       interval: 10s
       retries: 10
 
-  fafnir-setup:
-    container_name: "fafnir-setup"
+  heimdall-fafnir-setup:
+    container_name: "heimdall-fafnir-setup"
     image: "rmenendez8/fafnir:v0.3.0"
     restart: "no"
     depends_on:
@@ -33,12 +33,12 @@ services:
       - --env-file
       - /app/static/fafnir/config.yaml
 
-  fafnir-wallet:
-    container_name: "fafnir-wallet"
+  heimdall-fafnir-wallet:
+    container_name: "heimdall-fafnir-wallet"
     image: "rmenendez8/fafnir:v0.3.0"
     restart: always
     depends_on:
-      fafnir-setup:
+      heimdall-fafnir-setup:
         condition: service_completed_successfully
     volumes:
       - ./../../static/config/fafnir/heimdall.yaml:/app/static/fafnir/config.yaml
@@ -91,7 +91,7 @@ services:
     depends_on:
       heimdall-setup:
         condition: service_completed_successfully
-      fafnir-wallet:
+      heimdall-fafnir-wallet:
         condition: service_healthy
     volumes:
       - ./../../static/config/heimdall/mini/:/app/static/config

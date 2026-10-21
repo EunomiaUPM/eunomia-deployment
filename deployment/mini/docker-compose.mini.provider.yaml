@@ -25,7 +25,7 @@ services:
       --requirepass ds_core_provider_redis
       --user admin on >ds_core_provider_redis ~* +@all
 
-  fafnir-setup:
+  provider-fafnir-setup:
     container_name: "provider-fafnir-setup"
     image: "rmenendez8/fafnir:v0.3.0"
     restart: "no"
@@ -44,12 +44,12 @@ services:
       - --env-file
       - /app/static/fafnir/config.yaml
 
-  fafnir-wallet:
+  provider-fafnir-wallet:
     container_name: "provider-fafnir-wallet"
     image: "rmenendez8/fafnir:v0.3.0"
     restart: always
     depends_on:
-      fafnir-setup:
+      provider-fafnir-setup:
         condition: service_completed_successfully
     volumes:
       - ./../../static/config/fafnir/provider.yaml:/app/static/fafnir/config.yaml
@@ -113,7 +113,7 @@ services:
         condition: service_started
       provider-redis:
         condition: service_started
-      fafnir-wallet:
+      provider-fafnir-wallet:
         condition: service_healthy
     env_file:
       - ./../../static/envs/provider/core.env.example
