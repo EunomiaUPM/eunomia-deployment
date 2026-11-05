@@ -1,0 +1,22 @@
+{
+  // A ready-to-use environment for GitHub Codespaces: Python for the CLI and a
+  // Docker engine of its own. Once it opens, run ./eunomia up.
+  "name": "EUNOMIA",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb"
+  },
+  // Instances take free ports in 1600-1999 and are forwarded as they appear.
+  "forwardPorts": [1210, 1220, 1230],
+  "portsAttributes": {
+    "1210": { "label": "Factory, static API" },
+    "1220": { "label": "Factory, dynamic API" },
+    "1230": { "label": "Factory Keycloak" },
+    "1600-1999": { "label": "EUNOMIA instance", "onAutoForward": "silent" }
+  },
+  "postCreateCommand": "./eunomia doctor"
+}

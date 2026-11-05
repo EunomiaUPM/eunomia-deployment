@@ -1,0 +1,42 @@
+---
+title: "Requirements"
+description: "What the machine needs to run the deployment, and the ports it uses."
+---
+
+## Software
+
+| | Needed | Notes |
+| --- | --- | --- |
+| **Docker** | Docker Desktop (Windows, macOS) or Docker Engine (Linux), running | The EUNOMIA images are amd64 only; on Apple Silicon Docker Desktop runs them under emulation |
+| **Docker Compose** | v2 or later: `docker compose`, not `docker-compose` | Included in Docker Desktop. On Linux, the `docker-compose-plugin` package |
+| **Python** | Optional: 3.8 or later | Without it, the CLI runs in a container (see below) |
+
+About 4 GB of free memory for Docker. An agent with its wallet, database and cache uses around 200 MB at rest, so several fit in a few gigabytes. Plus 3 GB of disk for the images.
+
+`./eunomia doctor` checks all of this, and `./eunomia doctor --images` also checks that every pinned image can be pulled.
+
+## In GitHub Codespaces
+
+The repository has a dev container ([`.devcontainer/devcontainer.json`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/.devcontainer/devcontainer.json)) with Python and Docker-in-Docker, on a 4-core, 8 GB machine. [Open it in Codespaces](https://codespaces.new/EunomiaUPM/eunomia-deployment) and every command on these pages works the same; the ports of the instances and the demo factory are forwarded as they appear.
+
+## With or without Python
+
+`./eunomia` (and `eunomia.cmd` on Windows) runs the CLI with the local Python 3.8+ when there is one: it uses the standard library only, so there is nothing to install. Without Python, it builds a small image the first time (`deployment/tools/`, Python plus the Docker CLI) and runs the CLI inside it, with this checkout mounted. Set `EUNOMIA_CONTAINER=1` to use the container even when Python is there.
+
+To have `eunomia` on your `PATH` instead of `./eunomia`: `pip install -e .`
+
+## Ports
+
+| Ports | What |
+| --- | --- |
+| `1600-1999` | HTTP of the instances: each authority and agent takes the first free one |
+| `15400-15999` | Postgres of the instances, the same way |
+| `1210`, `1220`, `1230` | The demo factory: static API (pull), dynamic API (push), Keycloak |
+| `1290` | Where `demo test` and `demo events` receive pushed events, while they run (notebook sessions take their own, from `1291`) |
+
+Every range and port can move: see [Configuration](/docs/deployment/configuration). `./eunomia doctor` checks there are free ones.
+
+## Linux
+
+- The containers reach the host at `host.docker.internal`. If onboarding fails with timeouts, the firewall (ufw, firewalld) may block traffic from Docker to the host: allow the `docker0` interface.
+- The setup jobs run unprivileged and write the generated keys into `vault/`; the CLI makes those directories writable for them.

@@ -1,0 +1,67 @@
+---
+title: "Onboarding"
+description: "What `eunomia onboard` does for an agent, step by step, and the API calls behind each step."
+---
+
+<Onboarding />
+
+`./eunomia agent add` onboards a new agent with the authority; `./eunomia onboard <agent> [--authority <name>]` does it for an existing one. Steps 1 to 3 happen once per agent and authority; step 4, the GNAP login, happens per pair of agents, with `./eunomia login` or on the fly in `e2e` and `demo`. Each step checks first and skips what is already done, so it is safe to repeat.
+
+## 1. Wallets
+
+Every participant links its Fafnir wallet:
+
+```http
+POST /api/v1/wallet/link
+```
+
+on the agent and on the authority. The wallet creates the participant's keys and DID.
+
+## 2. Register
+
+The agent asks the authority for a `DataSpaceParticipant` credential, proving who it is with its certificate:
+
+```http
+POST /api/v1/vc-request/beg
+{
+  "url": "http://host.docker.internal:<authority port>/api/v1/gate/access",
+  "id": "<authority DID>",
+  "nick": "authority",
+  "vc_type": "DataSpaceParticipant_jwt_vc_json",
+  "method": "cert",
+  "auto": true
+}
+```
+
+`GET /api/v1/vc-request/all` lists the requests; the step waits until this one is `Finalized`.
+
+## 3. Gaia-X credentials
+
+Agents ask the peers that connect to them for `gx:labelcredential` (`verify_req_config.vcs_requested` in their configuration), so every agent gets it:
+
+1. **Legal VC**: `vc-request/beg` with `vc_type: gx_VatId_jwt_vc_json` and `method: cert`. The authority reads the VAT number from the `organizationIdentifier` of the agent's certificate, so it must hold one (`VATES-…`): every local agent gets its own.
+2. **Self-attested VCs**: `POST /api/v1/gaia/generate`, from the `gaia_config.legal_person` block of the agent's configuration.
+3. **Label VC**: `vc-request/beg` with `vc_type: gx_LabelCredential_jwt_vc_json` and `method: oidc4vp`: the agent presents the previous credentials and the authority's clearing house issues the label.
+
+Only an authority with the **eco** role (the default of `eunomia authority add`) issues Gaia-X credentials; with any other, `onboard` stops after step 2.
+
+## 4. Connect
+
+One agent (here bob) opens a GNAP grant with another (alice):
+
+```http
+POST /api/v1/peer-connection/connect
+{
+  "id": "<alice DID>",
+  "nick": "alice",
+  "url": "http://host.docker.internal:<alice port>/api/v1/gate/access",
+  "actions": ["talk"],
+  "auto": true
+}
+```
+
+alice verifies bob's credentials and, when he holds what she asks for, approves the connection: `GET /api/v1/peer-connection/request/all` on bob shows it `Approved`, and `GET /api/v1/mates/all` shows alice with a token. Without the label credential it stays `Pending`. Once approved, the grant works both ways: alice also holds a token for bob, so either can browse the other's catalog and negotiate with it. `eunomia login bob alice` runs this step and prints the token each side holds.
+
+## Addresses
+
+The URLs in these calls are the ones the **agents** use to reach each other, from inside their containers: `http://host.docker.internal:<port>`. The CLI itself talks to the agents at `http://127.0.0.1:<port>`.

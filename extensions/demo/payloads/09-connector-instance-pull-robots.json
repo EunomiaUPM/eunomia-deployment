@@ -1,0 +1,24 @@
+{
+  "templateName": "__CONN_PULL_NAME__",
+  "templateVersion": "__CONN_PULL_VERSION__",
+  "distributionId": "__DISTRIBUTION_PULL_ID__",
+  "metadata": {
+    "description": "HTTP Pull connector (OAuth2 password grant against the factory Keycloak). Issues GET /robots/ against the factory static API.",
+    "ownerId": "DEMO-FACTORY"
+  },
+  "dryRun": false,
+  "parameters": {
+    "ACCESS_URL": "__STATIC_API_URL__/robots/",
+    "ACCESS_METHODS": [
+      "GET"
+    ],
+    "ACCESS_HEADERS": {
+      "Accept": "application/json"
+    },
+    "USER_NAME": "testuser",
+    "USER_PASS": "password",
+    "TOKEN_URL": "__KEYCLOAK_URL__/realms/factory/protocol/openid-connect/token",
+    "CLIENT_ID": "factory-client",
+    "CLIENT_SECRET": "factory-secret"
+  }
+}

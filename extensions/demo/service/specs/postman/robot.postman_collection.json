@@ -1,0 +1,153 @@
+{
+	"info": {
+		"name": "Demo Factory - Static API (pull)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Get Robots",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{RobotUrl}}/robots",
+					"host": [
+						"{{RobotUrl}}"
+					],
+					"path": [
+						"robots"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Robot By Id",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{RobotUrl}}/robots/85",
+					"host": [
+						"{{RobotUrl}}"
+					],
+					"path": [
+						"robots",
+						"85"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Measures By Robot",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{RobotUrl}}/robots/3/measures",
+					"host": [
+						"{{RobotUrl}}"
+					],
+					"path": [
+						"robots",
+						"3",
+						"measures"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Measure",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{RobotUrl}}/measures/7",
+					"host": [
+						"{{RobotUrl}}"
+					],
+					"path": [
+						"measures",
+						"7"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Robot",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{RobotUrl}}/robots",
+					"host": [
+						"{{RobotUrl}}"
+					],
+					"path": [
+						"robots"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"welder\",\n  \"model\": \"KR-210 Quantec\",\n  \"line\": \"Line B\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Robot Measure",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"robot_id\": 1,\n  \"year\": 2025,\n  \"cycles\": 1250000,\n  \"uptimeHours\": 7900.5,\n  \"downtimeHours\": 310.2,\n  \"energyKwh\": 23150.4,\n  \"partsProduced\": 1180000,\n  \"defectRate\": 0.012,\n  \"oee\": 0.84,\n  \"mtbfHours\": 3200,\n  \"maintenanceCount\": 9,\n  \"avgTemperatureC\": 44.7\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{RobotUrl}}/measures",
+					"host": [
+						"{{RobotUrl}}"
+					],
+					"path": [
+						"measures"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "RobotUrl",
+			"value": "http://localhost:1210"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

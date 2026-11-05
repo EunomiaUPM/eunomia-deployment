@@ -1,0 +1,75 @@
+{
+	"info": {
+		"name": "Demo Factory - Dynamic API (push)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Subscribe",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"url\": \"http://host.docker.internal:9999/events\",\n  \"event_type\": \"robot_temperature\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{RobotUrlDynamic}}/subscriptions/subscribe",
+					"host": [
+						"{{RobotUrlDynamic}}"
+					],
+					"path": [
+						"subscriptions",
+						"subscribe"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Unsubscribe",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{RobotUrlDynamic}}/subscriptions/unsubscribe/1",
+					"host": [
+						"{{RobotUrlDynamic}}"
+					],
+					"path": [
+						"subscriptions",
+						"unsubscribe",
+						"1"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "RobotUrlDynamic",
+			"value": "http://localhost:1220"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

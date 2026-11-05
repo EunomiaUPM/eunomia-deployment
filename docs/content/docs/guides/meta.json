@@ -1,0 +1,9 @@
+{
+  "title": "Guides",
+  "pages": [
+    "data-exchange",
+    "notebooks",
+    "build-an-extension",
+    "extending"
+  ]
+}

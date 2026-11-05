@@ -1,0 +1,69 @@
+---
+title: "Configuration"
+description: "versions.env, .env and the YAML configuration files: what each one controls and what is safe to change."
+---
+
+## Image versions: versions.env
+
+[`versions.env`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/versions.env) is the **only** place the EUNOMIA images are pinned:
+
+```dotenv
+EUNOMIA_IMAGE=quay.io/eunomia_upm/ds-agent
+EUNOMIA_TAG=v0.4.0
+HEIMDALL_IMAGE=quay.io/eunomia_upm/heimdall
+HEIMDALL_TAG=v1.5.0
+FAFNIR_IMAGE=quay.io/eunomia_upm/fafnir-wallet
+FAFNIR_TAG=v0.2.0
+```
+
+Every compose file reads it (the CLI passes `--env-file versions.env`). Change a tag and run `./eunomia up` again. `./eunomia images --check` lists newer tags in the registries, without applying them: check what a tag contains before bumping it.
+
+Infrastructure images (Postgres, Redis, Keycloak) are pinned in the compose files.
+
+## Settings: .env
+
+The CLI reads `.env` at the repo root (copy [`.env.example`](https://github.com/EunomiaUPM/eunomia-deployment/blob/main/.env.example)); anything exported in the shell wins. Nothing in it is required.
+
+| Variable | Default | What |
+| --- | --- | --- |
+| `EUNOMIA_PREFIX` | `eunomia` | prefix of every local container and compose project |
+| `EUNOMIA_HTTP_PORTS`, `EUNOMIA_DB_PORTS` | `1600-1999`, `15400-15999` | where local instances take their ports |
+| `EUNOMIA_FACTORY_STATIC_PORT`, `…_DYNAMIC_PORT`, `…_KEYCLOAK_PORT` | `1210`, `1220`, `1230` | host ports of the demo factory |
+| `EUNOMIA_SINK_PORT` | `1290` | where `demo test` and `demo events` receive pushed events |
+| `EUNOMIA_PUSH_TIMEOUT` | `30` | seconds `demo test` waits for a pushed event |
+| `EUNOMIA_CONTAINER` | | `1`: run the CLI in its container even with Python on the machine |
+| `DOCKER_FACTORY_STATIC_URL`, … | `http://host.docker.internal:<port>` | where agents reach the demo factory, if it runs elsewhere |
+| `<NAME>_SSH_PASS` | | password for `eunomia restart` of a remote instance, if its server needs one |
+
+Instances are not configured here: they are created with `eunomia authority add`, `eunomia agent add` and `eunomia remote add`, and each one keeps its settings in `instances/<name>/instance.env`.
+
+## Instance configuration: static/config
+
+Local instances are rendered from templates when they are created; the result lives in `instances/<name>/config/`.
+
+| File | What |
+| --- | --- |
+| `static/config/agent/standalone/agent.template.yaml` | every local agent |
+| `static/config/agent/standalone/fafnir.template.yaml` | its wallet |
+| `static/config/heimdall/standalone/eco_authority.template.yaml` | a local authority with the eco role (the default) |
+| `static/config/heimdall/standalone/dataspace_authority.template.yaml` | a local authority with the data space role only |
+| `static/config/heimdall/standalone/fafnir.template.yaml` | its wallet |
+| `static/config/agent/prod/`, `static/config/heimdall/prod/` | the production files, one agent or authority per server |
+
+The templates take `${NAME}`, `${PORT}`, `${LEGAL_NAME}` and `${VAT}` (agents) or `${PORT}` (authorities). Things you may want to change:
+
+- **What an agent asks of its peers**: `ssi_auth.verify_req_config.vcs_requested`. Local agents ask for `gx:labelcredential`; `DataSpaceParticipant` only needs membership.
+- **The Gaia-X legal person**: `ssi_auth.gaia_config.legal_person`. The VAT number the authority certifies comes from the instance's certificate (its `organizationIdentifier`), generated with the instance.
+- **The DID method**: `did_config.type`. Keep `Jwk` locally ([why](/docs/architecture/trust#identifiers)).
+
+Keep the hostnames (`db`, `redis`, `wallet`) as they are: they are the service names of the compose templates in `deployment/instances/`.
+
+A change to a template applies to instances created afterwards. To change one existing instance, edit `instances/<name>/config/` and `eunomia restart <name>`.
+
+## Identities: vault
+
+Each local instance generates its own key pair and certificate under `instances/<name>/vault/` when it is created. The repository's `vault/agent/` and `vault/heimdall/` hold the example files for production (and the database credentials local instances copy): keys, self-signed certificates valid until June 2027, and Vault TLS placeholders.
+
+## The demo catalog: extensions/demo/payloads
+
+The JSON payloads `./eunomia demo publish <agent>` sends to that agent, in order. `__PLACEHOLDERS__` are filled with the ids the agent returns and the factory URLs. See [The demo factory](/docs/components/demo-factory#in-the-catalog).

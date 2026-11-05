@@ -1,0 +1,7 @@
+{
+  "dctTitle": "Factory Robots - HTTP Push",
+  "dctDescription": "Real-time robot events (robot_temperature, robot_energy_usage, robot_cycle_time, robot_vibration). The provider subscribes to the factory and POSTs every event to the consumer's endpoint.",
+  "dcatAccessService": "__DATA_SERVICE_ID__",
+  "datasetId": "__DATASET_ID__",
+  "dctFormats": "HTTP_PUSH"
+}

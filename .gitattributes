@@ -1,0 +1,5 @@
+# Run by sh/bash, also from Git Bash on Windows: always LF
+eunomia text eol=lf
+*.sh text eol=lf
+# Run by cmd.exe: CRLF
+eunomia.cmd text eol=crlf

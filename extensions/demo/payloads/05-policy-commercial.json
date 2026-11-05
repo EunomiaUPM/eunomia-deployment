@@ -1,0 +1,47 @@
+{
+  "odrlOffer": {
+    "permission": [
+      {
+        "action": "use",
+        "constraint": [
+          {
+            "leftOperand": "dateTime",
+            "operator": "gteq",
+            "rightOperand": "2026-01-01T00:00:00Z"
+          },
+          {
+            "leftOperand": "dateTime",
+            "operator": "lteq",
+            "rightOperand": "2030-12-31T23:59:59Z"
+          },
+          {
+            "leftOperand": "purpose",
+            "operator": "isA",
+            "rightOperand": "commercial"
+          }
+        ]
+      }
+    ],
+    "obligation": [
+      {
+        "action": "attribut",
+        "constraint": [
+          {
+            "leftOperand": "recipient",
+            "operator": "isA",
+            "rightOperand": "public"
+          }
+        ]
+      }
+    ],
+    "prohibition": [
+      {
+        "action": "derive",
+        "constraint": []
+      }
+    ]
+  },
+  "entityId": "__DATASET_ID__",
+  "entityType": "Dataset",
+  "description": "Commercial use licence (2026-2030): commercial purposes with mandatory attribution. Derivation of the dataset is prohibited."
+}

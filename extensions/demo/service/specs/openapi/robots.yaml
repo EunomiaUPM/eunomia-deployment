@@ -1,0 +1,350 @@
+openapi: 3.0.3
+info:
+  title: Demo Factory API
+  version: 1.0.0
+  description: |
+    Backend of the EUNOMIA demo provider: a factory with robots.
+
+    - **Static API** (port 1210, pull): the robots and their yearly production measures.
+    - **Dynamic API** (port 1220, push): subscriptions to the events the robots emit.
+      Every few seconds the simulator updates each event type and POSTs it to every subscriber.
+
+    Every route except `/docs` and `/openapi.yaml` needs a Keycloak bearer token
+    (realm `factory`, client `factory-client`).
+servers:
+  - url: http://localhost:1210
+    description: Static API (pull)
+  - url: http://localhost:1220
+    description: Dynamic API (push)
+tags:
+  - name: Robots
+    description: The robots of the factory.
+  - name: Measures
+    description: Yearly production measures of each robot.
+  - name: Subscriptions
+    description: Real-time robot events.
+security:
+  - bearerAuth: []
+paths:
+  /robots/:
+    get:
+      tags: [Robots]
+      summary: List every robot with its measures
+      responses:
+        "200":
+          description: The robots.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Robot"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Robots]
+      summary: Register a robot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RobotCreate"
+      responses:
+        "201":
+          description: The robot was created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Robot"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /robots/{id}:
+    get:
+      tags: [Robots]
+      summary: One robot with its measures
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The robot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Robot"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /robots/{id}/measures:
+    get:
+      tags: [Measures]
+      summary: Yearly measures of one robot
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The measures.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RobotMeasure"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /measures/:
+    post:
+      tags: [Measures]
+      summary: Record a year of measures for a robot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RobotMeasureCreate"
+      responses:
+        "201":
+          description: The measure was created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RobotMeasure"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /measures/{id}:
+    get:
+      tags: [Measures]
+      summary: One measure
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The measure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RobotMeasure"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /subscriptions/subscribe:
+    post:
+      tags: [Subscriptions]
+      summary: Subscribe a URL to the robot events
+      description: |
+        From then on the dynamic API POSTs a `RobotEvent` to `url` every time the
+        simulator updates an event, every 3 seconds per event type.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionCreate"
+      responses:
+        "201":
+          description: Subscribed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionCreated"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /subscriptions/unsubscribe/{id}:
+    post:
+      tags: [Subscriptions]
+      summary: Cancel a subscription
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Unsubscribed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        example: 1
+  responses:
+    BadRequest:
+      description: The body is not valid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    Robot:
+      type: object
+      properties:
+        name:
+          type: string
+          example: welder
+        model:
+          type: string
+          example: KR-210 Quantec
+        line:
+          type: string
+          description: Production line the robot works on.
+          example: Line B
+        measures:
+          type: array
+          items:
+            $ref: "#/components/schemas/RobotMeasure"
+    RobotCreate:
+      type: object
+      required: [name, model, line]
+      properties:
+        name:
+          type: string
+          example: welder
+        model:
+          type: string
+          example: KR-210 Quantec
+        line:
+          type: string
+          example: Line B
+    RobotMeasureFields:
+      type: object
+      properties:
+        robot_id:
+          type: integer
+          example: 1
+        year:
+          type: integer
+          example: 2025
+        cycles:
+          type: integer
+          description: Work cycles completed in the year.
+          example: 1250000
+        uptimeHours:
+          type: number
+          example: 7900.5
+        downtimeHours:
+          type: number
+          example: 310.2
+        energyKwh:
+          type: number
+          example: 23150.4
+        partsProduced:
+          type: integer
+          example: 1180000
+        defectRate:
+          type: number
+          description: Share of defective parts, 0 to 1.
+          example: 0.012
+        oee:
+          type: number
+          description: Overall equipment effectiveness, 0 to 1.
+          example: 0.84
+        mtbfHours:
+          type: number
+          description: Mean time between failures.
+          example: 3200
+        maintenanceCount:
+          type: integer
+          example: 9
+        avgTemperatureC:
+          type: number
+          example: 44.7
+    RobotMeasure:
+      allOf:
+        - type: object
+          properties:
+            ID:
+              type: integer
+              example: 1
+            CreatedAt:
+              type: string
+              format: date-time
+            UpdatedAt:
+              type: string
+              format: date-time
+            DeletedAt:
+              type: string
+              format: date-time
+              nullable: true
+        - $ref: "#/components/schemas/RobotMeasureFields"
+    RobotMeasureCreate:
+      allOf:
+        - $ref: "#/components/schemas/RobotMeasureFields"
+        - type: object
+          required: [robot_id, year, cycles, uptimeHours, downtimeHours, energyKwh, partsProduced, defectRate, oee, mtbfHours, maintenanceCount, avgTemperatureC]
+    SubscriptionCreate:
+      type: object
+      required: [url, event_type]
+      properties:
+        url:
+          type: string
+          description: Where to POST the events.
+          example: http://host.docker.internal:1200/api/v1/dataplane/ingress
+        event_type:
+          type: string
+          enum: [robot_temperature, robot_energy_usage, robot_cycle_time, robot_vibration]
+          example: robot_temperature
+    SubscriptionCreated:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Subscribed successfully
+        data:
+          type: object
+          properties:
+            ID:
+              type: integer
+              example: 3
+            url:
+              type: string
+            event_type:
+              type: string
+    RobotEvent:
+      type: object
+      description: What the dynamic API POSTs to each subscriber.
+      properties:
+        id:
+          type: integer
+          example: 2
+        item_type:
+          type: string
+          enum: [robot_temperature, robot_energy_usage, robot_cycle_time, robot_vibration]
+          example: robot_temperature
+        last_value:
+          type: number
+          example: 47.3
+        last_measured_at:
+          type: string
+          format: date-time
+          example: "2026-10-20T09:15:03Z"
+    Message:
+      type: object
+      properties:
+        message:
+          type: string
+    Error:
+      type: object
+      properties:
+        error:
+          type: string

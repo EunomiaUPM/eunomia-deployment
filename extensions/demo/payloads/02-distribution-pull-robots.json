@@ -1,0 +1,7 @@
+{
+  "dctTitle": "Factory Robots - HTTP Pull",
+  "dctDescription": "On-demand snapshot via GET /robots/: a JSON array with every robot and its yearly measures.",
+  "dcatAccessService": "__DATA_SERVICE_ID__",
+  "datasetId": "__DATASET_ID__",
+  "dctFormats": "HTTP_PULL"
+}

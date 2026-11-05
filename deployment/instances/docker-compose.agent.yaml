@@ -1,0 +1,137 @@
+# =====================================================================
+# An agent: ds-agent + Fafnir wallet + Postgres + Redis.
+#
+# Template for `eunomia agent add`. Not meant to be run by hand: the CLI
+# passes versions.env, instances/<name>/instance.env and the project name
+# (eunomia-<name>).
+#
+# Variables: INSTANCE (the name), CONTAINER (<prefix>-<name>), HTTP_PORT,
+# DB_PORT, REDIS_PASSWORD. Paths are relative to this file. The generated
+# config in instances/<name>/config/ reaches the services below by name
+# (db, redis, wallet), so every agent uses the same names in its network.
+# =====================================================================
+
+services:
+  db:
+    container_name: "${CONTAINER:?}-db"
+    image: postgres:18
+    restart: always
+    env_file:
+      - ./../../static/envs/agent/db.env.example
+    ports:
+      - "${DB_PORT:?}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    container_name: "${CONTAINER}-redis"
+    image: redis:8-alpine
+    restart: always
+    command: >
+      redis-server --requirepass ${REDIS_PASSWORD:?}
+      --user admin on >${REDIS_PASSWORD} ~* +@all
+
+  wallet-setup:
+    container_name: "${CONTAINER}-wallet-setup"
+    image: "${FAFNIR_IMAGE:?set FAFNIR_IMAGE in versions.env}:${FAFNIR_TAG:?set FAFNIR_TAG in versions.env}"
+    platform: linux/amd64
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./../../instances/${INSTANCE}/config/fafnir.yaml:/app/static/fafnir/config.yaml
+      - ./../../instances/${INSTANCE}/vault/secrets/db.json.example:/app/vault/secrets/db.json.example
+    env_file:
+      - ./../../static/envs/agent/fafnir.env.example
+    environment:
+      RUST_BACKTRACE: 1
+    command: ["setup", "--env-file", "/app/static/fafnir/config.yaml"]
+
+  wallet:
+    container_name: "${CONTAINER}-wallet"
+    image: "${FAFNIR_IMAGE}:${FAFNIR_TAG}"
+    platform: linux/amd64
+    restart: always
+    depends_on:
+      wallet-setup:
+        condition: service_completed_successfully
+    volumes:
+      - ./../../instances/${INSTANCE}/config/fafnir.yaml:/app/static/fafnir/config.yaml
+      - ./../../instances/${INSTANCE}/vault/secrets/db.json.example:/app/vault/secrets/db.json.example
+    env_file:
+      - ./../../static/envs/agent/fafnir.env.example
+    environment:
+      RUST_BACKTRACE: 1
+    command: ["start", "--env-file", "/app/static/fafnir/config.yaml"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7001/readiness"]
+      interval: 5s
+      timeout: 2s
+      retries: 30
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  agent-setup:
+    container_name: "${CONTAINER}-setup"
+    image: "${EUNOMIA_IMAGE:?set EUNOMIA_IMAGE in versions.env}:${EUNOMIA_TAG:?set EUNOMIA_TAG in versions.env}"
+    platform: linux/amd64
+    restart: "no"
+    command: ["setup", "-e", "/app/static/config/agent.yaml"]
+    volumes:
+      - ./../../instances/${INSTANCE}/config/:/app/static/config
+      - ./../../static/specs/agent:/app/static/specs
+      - ./../../static/policy_templates:/app/static/policy_templates
+      - ./../../instances/${INSTANCE}/vault/:/app/vault
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file:
+      - ./../../static/envs/agent/core.env.example
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  agent:
+    container_name: "${CONTAINER}"
+    image: "${EUNOMIA_IMAGE}:${EUNOMIA_TAG}"
+    platform: linux/amd64
+    restart: always
+    command: ["start", "-e", "/app/static/config/agent.yaml"]
+    ports:
+      # Same port inside and out: the agent advertises http://host.docker.internal:<port>
+      - "${HTTP_PORT:?}:${HTTP_PORT}"
+    volumes:
+      - ./../../instances/${INSTANCE}/config/:/app/static/config
+      - ./../../static/specs/agent:/app/static/specs
+      - ./../../static/policy_templates:/app/static/policy_templates
+      - ./../../instances/${INSTANCE}/vault/:/app/vault
+    depends_on:
+      agent-setup:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      wallet:
+        condition: service_healthy
+    env_file:
+      - ./../../static/envs/agent/core.env.example
+    environment:
+      RUST_BACKTRACE: full
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:${HTTP_PORT}/api/v1/readiness"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  db-data:

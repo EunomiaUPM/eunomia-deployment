@@ -1,0 +1,9 @@
+{
+  "title": "Architecture",
+  "pages": [
+    "trust",
+    "protocols",
+    "data-plane",
+    "onboarding"
+  ]
+}

@@ -1,0 +1,83 @@
+---
+title: "Architecture"
+description: "Authorities and agents: what each one does, the roles agents take in an exchange, and how they talk to each other."
+---
+
+An EUNOMIA data space has two kinds of participant, **authorities** and **agents**, and one rule: **nobody shares data with someone they have not verified, under terms they have not agreed.**
+
+<Architecture />
+
+## The participants
+
+**An authority** ([Heimdall](/docs/components/heimdall)) is the data space's registry and trust anchor. It decides who is a participant, and proves it by issuing verifiable credentials: a `DataSpaceParticipant` credential to every member and, in its eco role, the Gaia-X legal and label credentials. It verifies presentations and guards its own endpoints with GNAP. A data space has at least one; an agent can belong to several.
+
+**An agent** ([DS-Agent](/docs/components/ds-agent)) is what an organisation runs to take part. Every agent is the same piece of software with the same abilities:
+
+- it can **publish a catalog** (DCAT 3) of datasets, each with **policies** (ODRL) that say on what terms it can be used and **distributions** with **connectors** that say how to reach the data behind it: an HTTP API to pull, an event stream to push;
+- it can **browse other agents' catalogs**, **negotiate contracts** with them and start **transfers** under the agreements those negotiations produce;
+- it decides which peers it talks to, by the credentials it asks them for.
+
+**Every participant** runs a **wallet** ([Fafnir](/docs/components/fafnir)) as a sidecar, holding its keys, its DID and its credentials, and signing on its behalf. All of them share one core library, [Ymir](/docs/components/ymir).
+
+**A data backend** is the system that actually holds the data: a database, an API, a stream. The agent that shares it sits in front of it, so other agents never talk to it and never see its credentials. Here it is the [demo factory](/docs/components/demo-factory).
+
+### Provider and consumer are roles
+
+"Provider" and "consumer" are not kinds of agent: they are the roles two agents take **in one exchange**, the one whose catalog is used and the one that negotiates for it. The same agent provides in one exchange and consumes in the next, often at the same time. In this documentation and in the CLI (`eunomia demo test --consumer bob --provider alice`), the words always refer to that role.
+
+## The life of an exchange
+
+<Steps>
+<Step>
+
+### Onboarding
+
+Each agent links its wallet and gets its credentials from an authority. Then the agent that wants data connects to the one that has it: it presents its credentials and receives a GNAP access token. [Onboarding](/docs/architecture/onboarding) has every call.
+
+</Step>
+<Step>
+
+### Discovery
+
+With that token, the consumer asks for the provider's catalog over the Dataspace Protocol and picks a dataset and one of its policies.
+
+</Step>
+<Step>
+
+### Negotiation
+
+Consumer and provider exchange offers until they agree: eight states, from `REQUESTED` to `FINALIZED`, ending in an **agreement**. See [Protocols](/docs/architecture/protocols).
+
+</Step>
+<Step>
+
+### Transfer
+
+Under that agreement the consumer starts a transfer, pull or push. The provider's **data plane** fetches from the backend with its own credentials and hands the data over, or forwards every event as it happens. See [Data plane](/docs/architecture/data-plane).
+
+</Step>
+</Steps>
+
+`./eunomia demo test` runs the whole sequence and checks the result of every step; [Exchanging data](/docs/guides/data-exchange) shows each call.
+
+## Design principles
+
+- **Standards, not a platform.** Every interaction between participants is an open protocol: DSP for catalogs, contracts and transfers, GNAP for authorisation, OID4VCI and OID4VP for credentials, W3C Verifiable Credentials and DIDs for identity, ODRL for policy. Any implementation that speaks them can join.
+- **Sovereignty by construction.** Each participant holds its own keys in its own wallet, decides whom it trusts, and keeps its backend credentials to itself.
+- **Small, separate components.** An agent, an authority and a wallet, each a Rust service with its own database, wired together by configuration, not by a shared runtime.
+- **Open source, all of it.** GPL-3.0, with no open-core split.
+
+## In this repository
+
+| Path | What |
+| --- | --- |
+| `eunomia`, `eunomia.cmd`, `cli/` | The [CLI](/docs/cli) |
+| `versions.env` | The component image versions, in one place |
+| `deployment/instances/` | Compose templates for local agents and authorities |
+| `deployment/prod/` | Compose files for one agent or authority per server |
+| `extensions/` | [Extensions](/docs/cli/extensions): what the agents share. `extensions/demo/` holds the demo factory, its catalog payloads, its test and its notebooks |
+| `notebooks/` | What every extension's notebooks share: `01_auth`, the card helpers, the JupyterLab theme |
+| `static/config/` | Agent, authority and wallet configuration templates |
+| `static/specs/` | OpenAPI specs of the agent and the authority |
+| `vault/` | Example keys, certificates and secrets |
+| `docs/` | This site |

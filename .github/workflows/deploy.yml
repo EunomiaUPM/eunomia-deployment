@@ -1,0 +1,92 @@
+name: Deploy
+
+# Production, one instance per server, and manual for now: the prod configs
+# have not been run against a real Vault yet. To deploy on every push to main,
+# add this under `on:`
+#
+#   push:
+#     branches:
+#       - main
+#
+# The authority goes first; then every agent listed in the repository
+# variable AGENTS (a JSON array of names, e.g. ["ALICE", "BOB"]) deploys in
+# parallel. Each one needs its secrets in the `prod` environment:
+# <NAME>_HOST, <NAME>_USER, <NAME>_SSH_KEY and, optionally, <NAME>_SSH_PORT.
+
+on:
+  workflow_dispatch:
+
+env:
+  # Every compose call passes versions.env: the EUNOMIA images are pinned there.
+  AUTHORITY_COMPOSE: deployment/prod/docker-compose.heimdall.yaml
+  AGENT_COMPOSE: deployment/prod/docker-compose.agent.yaml
+
+jobs:
+  deploy-authority:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Deploy the authority via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.AUTHORITY_HOST }}
+          username: ${{ secrets.AUTHORITY_USER }}
+          key: ${{ secrets.AUTHORITY_SSH_KEY }}
+          port: ${{ secrets.AUTHORITY_SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+
+            echo "==> Updating repository"
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "==> Authenticating with quay.io"
+            echo "${{ secrets.QUAY_PASSWORD }}" | \
+              docker login quay.io -u "${{ secrets.QUAY_USER }}" --password-stdin
+
+            echo "==> Pulling the pinned images"
+            docker compose --env-file versions.env -f ${{ env.AUTHORITY_COMPOSE }} pull
+
+            echo "==> Starting the authority"
+            docker compose --env-file versions.env -f ${{ env.AUTHORITY_COMPOSE }} up -d --wait --remove-orphans
+
+            echo "==> Stack status"
+            docker compose --env-file versions.env -f ${{ env.AUTHORITY_COMPOSE }} ps
+
+  deploy-agent:
+    runs-on: ubuntu-latest
+    needs: deploy-authority
+    environment: prod
+    strategy:
+      fail-fast: false
+      matrix:
+        agent: ${{ fromJSON(vars.AGENTS || '[]') }}
+    steps:
+      - name: Deploy agent ${{ matrix.agent }} via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets[format('{0}_HOST', matrix.agent)] }}
+          username: ${{ secrets[format('{0}_USER', matrix.agent)] }}
+          key: ${{ secrets[format('{0}_SSH_KEY', matrix.agent)] }}
+          port: ${{ secrets[format('{0}_SSH_PORT', matrix.agent)] || 22 }}
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+
+            echo "==> Updating repository"
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "==> Authenticating with quay.io"
+            echo "${{ secrets.QUAY_PASSWORD }}" | \
+              docker login quay.io -u "${{ secrets.QUAY_USER }}" --password-stdin
+
+            echo "==> Pulling the pinned images"
+            docker compose --env-file versions.env -f ${{ env.AGENT_COMPOSE }} pull
+
+            echo "==> Starting the agent"
+            docker compose --env-file versions.env -f ${{ env.AGENT_COMPOSE }} up -d --wait --remove-orphans
+
+            echo "==> Stack status"
+            docker compose --env-file versions.env -f ${{ env.AGENT_COMPOSE }} ps

@@ -1,0 +1,166 @@
+name: "eunomia-agent"
+
+services:
+  agent-vault:
+    image: hashicorp/vault:1.21
+    container_name: agent-vault
+    ports:
+      - "8200:8200"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./../../vault/agent/config:/vault/config
+      - ./../../vault/agent/data:/vault/file
+    environment:
+      VAULT_CACERT: /vault/config/root-ca.pem
+      VAULT_LOCAL_CONFIG: >
+        {
+          "storage": { "file": { "path": "/vault/file" } },
+          "listener": [{
+            "tcp": {
+              "address": "0.0.0.0:8200",
+              "tls_cert_file": "/vault/config/vault-cert.pem",
+              "tls_key_file": "/vault/config/vault-key.pem",
+              "tls_client_ca_file": "/vault/config/vault-ca.pem"
+            }
+          }],
+          "ui": true,
+          "api_addr": "https://127.0.0.1:8200",
+          "default_lease_ttl": "168h",
+          "max_lease_ttl": "720h"
+        }
+    command: server
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  agent-db:
+    container_name: agent-db
+    image: postgres:18
+    restart: always
+    env_file:
+      - ./../../static/envs/agent/db.env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost"]
+      interval: 10s
+      retries: 10
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  agent-redis:
+    image: redis:8-alpine
+    restart: always
+    container_name: agent-redis
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --requirepass ds_core_agent_redis
+      --user admin on >ds_core_agent_redis ~* +@all
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # =========================
+  # Fafnir wallet
+  # =========================
+  # Runs with file-based secrets (is_vault_real: false in fafnir.agent.yaml):
+  # fafnir v0.2.0's setup writes the DB secret to Vault under the VAULT_PATH
+  # key but reads it back from VAULT_APP_DB, so it cannot boot against a real
+  # Vault. It only needs its DB credentials, mounted read-only, and it is
+  # reachable on the compose network alone: no port is published.
+  agent-fafnir-setup:
+    container_name: agent-fafnir-setup
+    image: "${FAFNIR_IMAGE:?set FAFNIR_IMAGE in versions.env}:${FAFNIR_TAG:?set FAFNIR_TAG in versions.env}"
+    platform: linux/amd64
+    depends_on:
+      agent-db:
+        condition: service_healthy
+    volumes:
+      - ./../../static/config/agent/prod/fafnir.agent.yaml:/app/static/fafnir/config.yaml:ro
+      - ./../../vault/agent/secrets/db.json:/app/vault/secrets/db.json:ro
+    environment:
+      VAULT_PATH: /app/vault/secrets
+      VAULT_APP_DB: db.json
+    command: ["setup", "--env-file", "/app/static/fafnir/config.yaml"]
+    restart: "no"
+
+  agent-fafnir-wallet:
+    container_name: agent-fafnir-wallet
+    image: "${FAFNIR_IMAGE:?set FAFNIR_IMAGE in versions.env}:${FAFNIR_TAG:?set FAFNIR_TAG in versions.env}"
+    platform: linux/amd64
+    restart: always
+    depends_on:
+      agent-fafnir-setup:
+        condition: service_completed_successfully
+    volumes:
+      - ./../../static/config/agent/prod/fafnir.agent.yaml:/app/static/fafnir/config.yaml:ro
+      - ./../../vault/agent/secrets/db.json:/app/vault/secrets/db.json:ro
+    environment:
+      VAULT_PATH: /app/vault/secrets
+      VAULT_APP_DB: db.json
+    command: ["start", "--env-file", "/app/static/fafnir/config.yaml"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7001/readiness"]
+      interval: 10s
+      timeout: 2s
+      retries: 10
+
+  # =========================
+  # Setup job (one-shot)
+  # =========================
+  agent-setup:
+    container_name: agent-setup
+    image: "${EUNOMIA_IMAGE:?set EUNOMIA_IMAGE in versions.env}:${EUNOMIA_TAG:?set EUNOMIA_TAG in versions.env}"
+    platform: linux/amd64
+    command: ["setup", "-e", "/app/static/config/core.agent.yaml"]
+    volumes:
+      - ./../../static/config/agent/prod:/app/static/config
+      - ./../../static/specs/agent:/app/static/specs
+      - ./../../static/policy_templates:/app/static/policy_templates
+      - ./../../vault/agent:/app/vault
+    depends_on:
+      agent-db:
+        condition: service_healthy
+      agent-vault:
+        condition: service_started
+      agent-redis:
+        condition: service_started
+    env_file:
+      - ./../../static/envs/agent/core.env
+    restart: "no"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # =========================
+  # Main service
+  # =========================
+  # No healthcheck: in prod the agent terminates TLS itself on 443, so a probe
+  # from inside the container would need the public certificate's hostname.
+  agent:
+    container_name: agent
+    image: "${EUNOMIA_IMAGE:?set EUNOMIA_IMAGE in versions.env}:${EUNOMIA_TAG:?set EUNOMIA_TAG in versions.env}"
+    platform: linux/amd64
+    command: ["start", "-e", "/app/static/config/core.agent.yaml"]
+    ports:
+      - "443:443"
+    volumes:
+      - ./../../static/config/agent/prod:/app/static/config
+      - ./../../static/specs/agent:/app/static/specs
+      - ./../../static/policy_templates:/app/static/policy_templates
+      - ./../../vault/agent:/app/vault
+    depends_on:
+      agent-setup:
+        condition: service_completed_successfully
+      agent-db:
+        condition: service_healthy
+      agent-vault:
+        condition: service_started
+      agent-redis:
+        condition: service_started
+      agent-fafnir-wallet:
+        condition: service_healthy
+    env_file:
+      - ./../../static/envs/agent/core.env
+    environment:
+      RUST_BACKTRACE: full
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

@@ -1,84 +1,57 @@
-# **Eunomia Deployment**
+# EUNOMIA Deployment
 
-This repository contains artifacts and scripts to deploy and test the Eunomia framework. It includes example certificates for authority, provider, and consumer, a central docker-compose file, and automation scripts in Bash or Powershell.
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![DSP](https://img.shields.io/badge/Protocol-DSP-orange)](https://docs.internationaldataspaces.org/ids-knowledgebase/v/dataspace-protocol)
+[![GAIA-X](https://img.shields.io/badge/GAIA--X-Compliant-00A86B)](https://gaia-x.eu/)
+[![Open in GitHub Codespaces](https://img.shields.io/badge/Open_in-Codespaces-181717?logo=github)](https://codespaces.new/EunomiaUPM/eunomia-deployment)
 
-## **Eunomia Components**
+Run [EUNOMIA](https://github.com/EunomiaUPM) data spaces: authorities that admit participants with verifiable credentials, and as many agents as you need, each one able to publish a catalog and to negotiate and exchange data with any other. `eunomia` works as a hypervisor of these instances: on one machine for development and demos, or one per server in production.
 
-This deployment orchestrates several core components of the Eunomia ecosystem:
+## Quick start
 
-- **[Eunomia Agents](https://github.com/EunomiaUPM/ds-agent)**: The Dataspace Agents that handle the core logic for participants (Provider and Consumer).
-- **[Heimdall](https://github.com/EunomiaUPM/heimdall)**: The Dataspace Authority and Clearing House that governs onboarding and compliance.
+All you need is Docker.
 
-
-## **Deployment Methods**
-
-There are two main ways to deploy this environment:
-
-1. **[Mini Deployment](./deployment/mini/README.md)**: A lightweight deployment using Docker Compose. Click the link to see the specific guide.
-2. **[Prod Deployment](./deployment/prod/README.md)**: Production deployment with TLS, Vault, and Keycloak. Click the link to see the specific guide.
-
-## **Requirements**
-
-- Docker and docker-compose (or Docker Desktop)
-- Permissions to execute scripts (chmod +x)
-
-## **DID Configuration**
-
-Depending on the environment, the Decentralized Identifier (DID) method changes. While **GAIA-X officially only supports `did:web`**, Eunomia allows flexibility for local testing:
-
-- **Mini Deployment (Local)**: Uses **`did:jwk`**. Since `did:web` requires a public domain and resolving a `did.json` file, it is not suitable for local-only environments.
-- **Prod Deployment**: Supports both, but **`did:web`** should be used to remain compliant with GAIA-X standards.
-
-> [!TIP]
-> Heimdall is specifically designed to work as a **Clearing House using `did:jwk`** in local/mini mode, allowing you to test the full compliance flow without needing complex DNS or web server setups.
-
-## **External Dependencies**
-
-This project depends on the **public walt.id wallet API** for credential management. Mini deployments use a local walt.id stack; production deployments point to the public hosted service. See the specific deployment guides for details.
-
-## **GAIA-X Compliance**
-
-By default, Eunomia operates in a generic dataspace mode. To make the deployment **GAIA-X compliant**, the following three changes are required:
-
-### 1 — Verification configuration
-
-In the Agent config YAML, update the `verify_req_config` block to require a GAIA-X Label Credential:
-
-```yaml
-verify_req_config:
-  is_cert_allowed: false
-  vcs_requested: [gx:LabelCredential]
+```bash
+git clone https://github.com/EunomiaUPM/eunomia-deployment.git
+cd eunomia-deployment
+./eunomia doctor                                     # check Docker, ports and versions
+./eunomia authority add authority                    # an authority
+./eunomia agent add alice                            # two agents, onboarded with it
+./eunomia agent add bob
+./eunomia demo up                                    # a demo backend: a factory with robots
+./eunomia demo publish alice                         # alice publishes it
+./eunomia demo test --consumer bob --provider alice  # bob negotiates, pulls the robots, streams their events
 ```
 
-### 2 — GAIA-X connectivity
+On Windows, use `.\eunomia.cmd` instead of `./eunomia`. No Docker at hand? Open the repository in GitHub Codespaces.
 
-Add (or update) the `gaia_config` block pointing to the Heimdall instance. The values differ between Mini and Prod:
+`./eunomia ls` lists the instances, their URLs and their consoles (agents: `eunomia` / `eunomia`). `./eunomia notebook alice bob` runs an exchange one call per cell, in Jupyter, with whatever alice publishes. Any agent can play either role: `./eunomia demo publish bob` and `./eunomia demo test --consumer alice --provider bob` run it the other way round.
 
-```yaml
-gaia_config:
-  api:
-    protocol: 'http'            # mini: http | prod: https
-    url: 'url'                  # mini: host.docker.internal | prod: your.domain.com
-    port: null                  # mini: 1500 (Heimdall port) | prod: null
+The demo is an extension (`extensions/demo/`): what agents share, and how you test it, comes from extensions. Your own project is another one, kept in its own repository and loaded with `EUNOMIA_EXTENSIONS`; [Build an extension](https://eunomiaupm.github.io/eunomia-deployment/docs/guides/build-an-extension) goes from an empty directory to data flowing.
+
+## Documentation
+
+**<https://eunomiaupm.github.io/eunomia-deployment>**: quickstart, architecture, the components (DS-Agent, Heimdall, Fafnir, Ymir), standalone and production deployment, the `eunomia` CLI, extensions and the API reference.
+
+The site is built from [`docs/`](docs/) with [Fumadocs](https://fumadocs.dev); the pages are MDX files under [`docs/content/docs/`](docs/content/docs/). To run it locally:
+
+```bash
+cd docs
+npm ci
+npm run dev            # http://localhost:3000
+npm run generate:api   # after changing an OpenAPI spec
 ```
 
-### 3 — Heimdall startup command
+## Components
 
-In the Docker Compose file, change the `command` for **both** the `heimdall` and `heimdall-setup` services to use the GAIA-X ecosystem config:
+- **[DS-Agent](https://github.com/EunomiaUPM/ds-agent)**: the agent every participant runs.
+- **[Heimdall](https://github.com/EunomiaUPM/heimdall)**: the dataspace authority.
+- **[Fafnir](https://github.com/EunomiaUPM/fafnir-wallet)**: the wallet next to each of them.
+- **[Ymir](https://github.com/EunomiaUPM/ymir)**: the core library they share.
 
-```yaml
-command:
-  - setup
-  - --env-file
-  - /app/static/config/eco_authority.yaml
-```
----
+Their versions are pinned in [`versions.env`](versions.env).
 
-> [!NOTE]
-> The `eco_authority.yaml` config activates **all** Heimdall roles simultaneously:
-> - **GAIA-X Clearing House** — essentially a **Dataspace Authority specifically for the GAIA-X ecosystem**; it validates and signs compliance credentials on behalf of the ecosystem.
-> - **Clearing House Proxy** — proxies requests to the Clearing House.
-> - **Legal Authority** — issues legal-level credentials within the dataspace.
-> - **Dataspace Authority** — governs participant onboarding and policy enforcement.
->
-> In a **real-world ecosystem**, a single entity cannot (and should not) assume all these roles simultaneously as it would **centralize the system**, defeating the purpose of a decentralized architecture. This multi-role configuration is strictly intended for **development and testing** purposes.
+## License
+
+[GPL v3](LICENSE.md)

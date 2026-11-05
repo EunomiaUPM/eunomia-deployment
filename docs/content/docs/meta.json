@@ -1,0 +1,21 @@
+{
+  "title": "EUNOMIA",
+  "root": true,
+  "pages": [
+    "---Get started---",
+    "index",
+    "quickstart",
+    "requirements",
+    "---Learn---",
+    "architecture",
+    "components",
+    "---Deploy---",
+    "deployment",
+    "---Use---",
+    "cli",
+    "guides",
+    "---Reference---",
+    "api",
+    "troubleshooting"
+  ]
+}

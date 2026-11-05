@@ -1,0 +1,458 @@
+---
+title: "Reference"
+description: "Every eunomia command and its options, generated from the CLI's own help."
+---
+
+Run it as `./eunomia <command>` (macOS, Linux) or `.\eunomia.cmd <command>` (Windows), or `eunomia` after `pip install -e .`. Every command takes `--help`. For the commands in context, see [Workflows](/docs/cli/workflows).
+
+<Callout type="info">This page is generated from the CLI itself: `python3 cli/tools/gen_cli_docs.py`. CI fails when it is out of date.</Callout>
+
+## `eunomia doctor`
+
+Check Docker, Compose, ports and versions.env.
+
+```text
+eunomia doctor [-h] [--images]
+
+options:
+  -h, --help  show this help message and exit
+  --images    also check every pinned image can be pulled
+```
+
+## `eunomia authority`
+
+Authorities: issue credentials and admit agents.
+
+### `eunomia authority add`
+
+Create and start an authority on free ports.
+
+```text
+eunomia authority add [-h] [--role {eco,dataspace}] [name]
+
+positional arguments:
+  name                  default: authority-<random>
+
+options:
+  -h, --help            show this help message and exit
+  --role {eco,dataspace}
+                        eco (default) also issues Gaia-X credentials
+```
+
+## `eunomia agent`
+
+Agents: publish catalogs, negotiate, exchange data.
+
+### `eunomia agent add`
+
+Create and start an agent on free ports, and onboard it.
+
+```text
+eunomia agent add [-h] [--authority AUTHORITY] [--no-onboard] [name]
+
+positional arguments:
+  name                  default: agent-<random>
+
+options:
+  -h, --help            show this help message and exit
+  --authority AUTHORITY
+                        onboard it with this authority (default: the only one there is)
+  --no-onboard          only create and start it
+```
+
+## `eunomia remote`
+
+Instances running on other servers, known by URL.
+
+### `eunomia remote add`
+
+Register a remote authority or agent.
+
+```text
+eunomia remote add [-h] --kind {agent,authority} --url URL [--ssh USER@HOST] [--path PATH]
+                          name
+
+positional arguments:
+  name
+
+options:
+  -h, --help            show this help message and exit
+  --kind {agent,authority}
+  --url URL             its public URL, e.g. https://agent.example.org
+  --ssh USER@HOST       SSH access, for eunomia restart
+  --path PATH           its deployment/prod directory on the server, for eunomia restart
+```
+
+## `eunomia ls`
+
+Every instance, where it runs and its state.
+
+```text
+eunomia ls [-h]
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `eunomia up`
+
+Start registered local instances (default: all of them).
+
+```text
+eunomia up [-h] [name ...]
+
+positional arguments:
+  name
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `eunomia stop`
+
+Stop local instances, keeping their data (default: all, and the extensions' services).
+
+```text
+eunomia stop [-h] [name ...]
+
+positional arguments:
+  name
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `eunomia rm`
+
+Remove instances: containers, volumes, configuration and identity.
+
+```text
+eunomia rm [-h] [-y] name [name ...]
+
+positional arguments:
+  name
+
+options:
+  -h, --help  show this help message and exit
+  -y, --yes   do not ask for confirmation
+```
+
+## `eunomia down`
+
+Remove every local instance and the extensions' services.
+
+```text
+eunomia down [-h] [-y] [-n]
+
+options:
+  -h, --help     show this help message and exit
+  -y, --yes      do not ask for confirmation
+  -n, --dry-run  show what would be removed
+```
+
+## `eunomia status`
+
+Every instance and the extensions' services, or one instance in detail.
+
+```text
+eunomia status [-h] [name]
+
+positional arguments:
+  name
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `eunomia logs`
+
+Logs of an instance, of an extension's service or of any container.
+
+```text
+eunomia logs [-h] [-f] [--tail TAIL] target [services ...]
+
+positional arguments:
+  target        an instance name, a service name ('demo'), or a container name
+  services      limit to these compose services
+
+options:
+  -h, --help    show this help message and exit
+  -f, --follow
+  --tail TAIL   lines per container (default: 200, or 'all')
+```
+
+## `eunomia onboard`
+
+Wallets, membership and Gaia-X credentials for agents.
+
+```text
+eunomia onboard [-h] [--authority AUTHORITY] agent [agent ...]
+
+positional arguments:
+  agent
+
+options:
+  -h, --help            show this help message and exit
+  --authority AUTHORITY
+                        default: the only authority there is
+```
+
+## `eunomia login`
+
+GNAP login between two agents: once approved, each holds a token for the other.
+
+```text
+eunomia login [-h] agent other
+
+positional arguments:
+  agent       the agent that asks for the grant
+  other       the agent that verifies its credentials and approves it
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `eunomia catalog`
+
+An agent's catalog.
+
+### `eunomia catalog show`
+
+List an agent's datasets, distributions and connector instances.
+
+```text
+eunomia catalog show [-h] agent
+
+positional arguments:
+  agent
+
+options:
+  -h, --help  show this help message and exit
+```
+
+## `eunomia notebook`
+
+Notebooks against any two agents: catalog, negotiation, pull and push, call by call.
+
+```text
+eunomia notebook [-h] [--dataset DATASET] [--execute] [--flow {pull,push}] [--no-browser]
+                        [--fresh]
+                        provider consumer
+
+positional arguments:
+  provider            the agent that publishes
+  consumer            the agent that negotiates and receives
+
+options:
+  -h, --help          show this help message and exit
+  --dataset DATASET   which dataset to negotiate: part of its title or id (default: the first with
+                      a policy)
+  --execute           run the flows headless instead of opening JupyterLab
+  --flow {pull,push}  with --execute, only this flow (repeatable)
+  --no-browser        start JupyterLab without opening a browser
+  --fresh             copy every source notebook into the session again, dropping its outputs and
+                      edits
+```
+
+## `eunomia prod`
+
+The production node of this server.
+
+### `eunomia prod up`
+
+Start this server's agent or authority (deployment/prod).
+
+```text
+eunomia prod up [-h] [--pull] {agent,authority}
+
+positional arguments:
+  {agent,authority}
+
+options:
+  -h, --help         show this help message and exit
+  --pull             pull the pinned images first
+```
+
+### `eunomia prod status`
+
+Its containers.
+
+```text
+eunomia prod status [-h] {agent,authority}
+
+positional arguments:
+  {agent,authority}
+
+options:
+  -h, --help         show this help message and exit
+```
+
+### `eunomia prod logs`
+
+Its logs.
+
+```text
+eunomia prod logs [-h] [-f] [--tail TAIL] {agent,authority} [services ...]
+
+positional arguments:
+  {agent,authority}
+  services           limit to these compose services
+
+options:
+  -h, --help         show this help message and exit
+  -f, --follow
+  --tail TAIL        lines per container (default: 200, or 'all')
+```
+
+## `eunomia restart`
+
+Restart instances: remote ones over SSH, local ones here.
+
+```text
+eunomia restart [-h] [-n] name [name ...]
+
+positional arguments:
+  name
+
+options:
+  -h, --help     show this help message and exit
+  -n, --dry-run  print the SSH commands instead
+```
+
+## `eunomia images`
+
+Pinned images; --check looks for newer tags.
+
+```text
+eunomia images [-h] [--check]
+
+options:
+  -h, --help  show this help message and exit
+  --check     query the registries
+```
+
+## `eunomia demo`
+
+The demo factory: run it, publish it from an agent, test it and use it through the data space.
+
+### `eunomia demo up`
+
+Start the demo factory.
+
+```text
+eunomia demo up [-h] [--build]
+
+options:
+  -h, --help  show this help message and exit
+  --build     rebuild its image
+```
+
+### `eunomia demo down`
+
+Remove the demo factory and its data.
+
+```text
+eunomia demo down [-h]
+
+options:
+  -h, --help  show this help message and exit
+```
+
+### `eunomia demo publish`
+
+Publish the factory in an agent's catalog: dataset, policies, connectors.
+
+```text
+eunomia demo publish [-h] [--force] agent
+
+positional arguments:
+  agent
+
+options:
+  -h, --help  show this help message and exit
+  --force     publish it again even if it is there
+```
+
+### `eunomia demo robots`
+
+Negotiate and pull the robots, printed as JSON.
+
+```text
+eunomia demo robots [-h] --consumer AGENT --provider AGENT [-v]
+
+options:
+  -h, --help        show this help message and exit
+  --consumer AGENT  the agent that negotiates and receives
+  --provider AGENT  the agent whose catalog is used
+  -v, --verbose
+```
+
+### `eunomia demo events`
+
+Negotiate and print the robot events as they are pushed.
+
+```text
+eunomia demo events [-h] --consumer AGENT --provider AGENT [-n COUNT] [-v]
+
+options:
+  -h, --help            show this help message and exit
+  --consumer AGENT      the agent that negotiates and receives
+  --provider AGENT      the agent whose catalog is used
+  -n COUNT, --count COUNT
+                        stop after this many events (default: Ctrl+C)
+  -v, --verbose
+```
+
+### `eunomia demo token`
+
+A Keycloak token to call the factory API directly.
+
+```text
+eunomia demo token [-h]
+
+options:
+  -h, --help  show this help message and exit
+```
+
+### `eunomia demo test`
+
+The demo extension's end-to-end test between two agents.
+
+```text
+eunomia demo test [-h] --consumer AGENT --provider AGENT [--dataset DATASET]
+                         [--list-datasets] [--keep-open] [--no-suspend] [--no-data-pull]
+                         [--no-push] [-v]
+
+options:
+  -h, --help         show this help message and exit
+  --consumer AGENT   the agent that negotiates and receives
+  --provider AGENT   the agent whose catalog is used
+  --dataset DATASET  substring of the dataset title (default: the demo factory dataset)
+  --list-datasets    list the provider's catalog and exit
+  --keep-open        leave the pull transfer STARTED
+  --no-suspend       skip the suspend/resume leg
+  --no-data-pull     skip the data pull through the proxy
+  --no-push          skip the push transfer
+  -v, --verbose      dump every request and response
+```
+
+### `eunomia demo notebook`
+
+The extension's notebooks, with one agent as the provider and another as the consumer.
+
+```text
+eunomia demo notebook [-h] [--execute] [--flow {pull,push}] [--no-browser] [--fresh]
+                             provider consumer
+
+positional arguments:
+  provider            the agent that publishes
+  consumer            the agent that negotiates and receives
+
+options:
+  -h, --help          show this help message and exit
+  --execute           run the flows headless instead of opening JupyterLab
+  --flow {pull,push}  with --execute, only this flow (repeatable)
+  --no-browser        start JupyterLab without opening a browser
+  --fresh             copy every source notebook into the session again, dropping its outputs and
+                      edits
+```

@@ -1,0 +1,95 @@
+---
+title: "Quickstart"
+description: "From a clean machine to an authority, two agents and data flowing between them, in a few commands."
+---
+
+You need Docker running and this repository checked out. Nothing else: see [Requirements](/docs/requirements).
+
+| macOS, Linux | Windows |
+| --- | --- |
+| `./eunomia <command>` | `.\eunomia.cmd <command>` |
+
+Both take the same commands. The examples below use `./eunomia`.
+
+<Callout type="info">
+No Docker on this machine? [Open the repository in GitHub Codespaces](https://codespaces.new/EunomiaUPM/eunomia-deployment): it comes with Python and a Docker engine of its own, and runs `./eunomia doctor` when it opens. Then carry on from step 2.
+</Callout>
+
+## 1. Check your machine
+
+```bash
+./eunomia doctor
+```
+
+It checks Docker, Docker Compose v2, free ports and the image versions, and says what to fix when something is off.
+
+## 2. Create the data space
+
+```bash
+./eunomia authority add authority
+./eunomia agent add alice
+./eunomia agent add bob
+```
+
+The first command downloads the images, which takes a few minutes. Then:
+
+- **`authority`** is the data space's authority: it admits agents and issues their credentials.
+- **`alice`** and **`bob`** are two agents. Each one is onboarded as it is created: it links its wallet and gets its membership and Gaia-X credentials from the authority.
+
+The names are yours to choose. Every instance takes free ports; `./eunomia ls` lists them with their URLs:
+
+```text
+NAME       KIND             WHERE  URL                    ADMIN                        STATE
+alice      agent            local  http://127.0.0.1:1601  http://127.0.0.1:1601/admin  running (healthy)
+authority  authority (eco)  local  http://127.0.0.1:1600  http://127.0.0.1:1600/admin  running (healthy)
+bob        agent            local  http://127.0.0.1:1602  http://127.0.0.1:1602/admin  running (healthy)
+```
+
+`ADMIN` is each instance's console (agents: `eunomia` / `eunomia`).
+
+## 3. Share data
+
+Any agent can publish data and any agent can consume it. What they share comes from an [extension](/docs/cli/extensions); the demo one brings a factory with robots, and everything about it is under `eunomia demo`. Start the factory and let alice publish it:
+
+```bash
+./eunomia demo up
+./eunomia demo publish alice
+```
+
+Then let bob get it:
+
+```bash
+./eunomia demo test --consumer bob --provider alice
+```
+
+bob logs in with alice over GNAP, asks for her catalog, negotiates a contract over the factory dataset, pulls the robots through alice and receives a robot event she pushes. It ends with `END-TO-END TEST PASSED`.
+
+To see it as an application would:
+
+```bash
+./eunomia demo robots --consumer bob --provider alice  # the robots, as JSON
+./eunomia demo events --consumer bob --provider alice  # the robot events, live, until Ctrl+C
+```
+
+The roles are per exchange. Publish the catalog in bob too, and alice can consume from him:
+
+```bash
+./eunomia demo publish bob
+./eunomia demo test --consumer alice --provider bob
+```
+
+[Exchanging data](/docs/guides/data-exchange) walks through what happens in each step, and how to do it from the consoles. To run it one call at a time, in Jupyter: `./eunomia notebook alice bob` ([Notebooks](/docs/guides/notebooks)).
+
+## 4. Stop or start over
+
+```bash
+./eunomia stop  # stop everything, keep the data
+./eunomia up    # start every instance again
+./eunomia down  # remove every instance and the demo, to start from scratch
+```
+
+## Next
+
+- [Architecture](/docs/architecture): what each piece does.
+- [Local data space](/docs/deployment/local): more agents and authorities, and everything about instances.
+- [Troubleshooting](/docs/troubleshooting) when something fails.

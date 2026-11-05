@@ -1,0 +1,52 @@
+---
+title: "Identity and trust"
+description: "DIDs, verifiable credentials and the wallet: how participants prove who they are, and how an agent decides whom to talk to."
+---
+
+Trust in EUNOMIA is not a shared password or a central account. Each participant has its own cryptographic identity, the authority vouches for it with credentials, and every other participant checks those credentials before it talks.
+
+## Identifiers
+
+Every participant has a **DID** (decentralised identifier) and the key pair behind it, created by its wallet when it is linked. Two DID methods are supported:
+
+| Method | What it is | Used in |
+| --- | --- | --- |
+| `did:jwk` | The DID **is** the public key, encoded. Nothing to resolve over the network. | Local instances |
+| `did:web` | The DID points to a `did.json` document published on the participant's domain. | Production, and what Gaia-X supports |
+
+Local instances use `did:jwk` because they share one host: a `did:web` on `host.docker.internal` would carry the port as `%3A` in the DID, and the agents then fail to look their peers up by DID. Each participant serves its DID document at `/.well-known/did.json` either way.
+
+Every local instance gets its own RSA key pair and self-signed certificate when it is created, under `instances/<name>/vault/`. Since `did:jwk` derives the DID from the key, every instance has its own DID; the certificate also carries its own VAT number, for Gaia-X.
+
+## Credentials
+
+Credentials are W3C verifiable credentials, issued by the authority over **OID4VCI** and kept in the participant's wallet:
+
+| Credential | Who gets it | How | What for |
+| --- | --- | --- | --- |
+| `DataSpaceParticipant` | every agent | certificate | membership of the data space |
+| `gx:VatId` | every agent | certificate | the Gaia-X legal registration number, read from the certificate's `organizationIdentifier` |
+| Gaia-X self-description | every agent | self-signed | legal person, terms and conditions, generated from `gaia_config` |
+| `gx:LabelCredential` | every agent | **OID4VP** presentation of the above | the Gaia-X label |
+
+The label is the Gaia-X compliance step: the agent presents its legal credential and self-description, the authority's clearing-house function checks them, and issues the label. Only an authority with the **eco** role issues Gaia-X credentials.
+
+## Whom an agent talks to
+
+An agent lists the credentials it requires from the peers that connect to it:
+
+```yaml
+ssi_auth:
+  verify_req_config:
+    vcs_requested: ["gx:labelcredential"]
+```
+
+When another agent connects (the GNAP grant), it asks for a presentation of those credentials, verifies it, and only then issues an access token. Without them the connection stays `Pending`. Local agents ask for the Gaia-X label, and `eunomia onboard` gets it for every agent, so any agent can connect to any other; `["DataSpaceParticipant"]` would only require membership.
+
+## The wallet
+
+Each participant's [Fafnir](/docs/components/fafnir) wallet holds its keys, DIDs and credentials in the participant's own database, signs JWTs for it and plays the holder side of OID4VCI and OID4VP. It runs as a sidecar on the participant's private network and publishes no port: nothing outside the participant can reach it.
+
+## Secrets
+
+Agents and the authority read their secrets (database credentials, keys, certificates) through a Vault interface. Local instances use a file-backed vault, `instances/<name>/vault/`; production uses HashiCorp Vault with TLS. See [Production](/docs/deployment/production).
