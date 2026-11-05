@@ -1,0 +1,300 @@
+---
+title: "Build an extension"
+description: "From an empty directory to data flowing between two agents: a small backend, its catalog entry and a test, in a repository of your own."
+---
+
+An [extension](/docs/cli/extensions) is how your data enters a data space: a directory with some Python and JSON, kept in your own repository, that adds commands to `eunomia`. This guide builds one from nothing. It shares a list of weather stations, and ends with `bob` negotiating for them with `alice` and pulling them through the data plane.
+
+You need a running data space with two agents. If you do not have one:
+
+```bash
+./eunomia authority add authority
+./eunomia agent add alice
+./eunomia agent add bob
+```
+
+This is the whole extension:
+
+```text
+weather/
+├── __init__.py              # the extension: commands, services, test
+├── publish.py               # what `eunomia weather publish` does
+├── payloads/                # what goes into the catalog
+│   ├── dataset.json
+│   ├── distribution.json
+│   ├── policy.json
+│   ├── connector-template.json
+│   └── connector-instance.json
+└── service/                 # the backend
+    ├── docker-compose.yaml
+    └── stations.json
+```
+
+## 1. The backend
+
+Any HTTP service an agent can reach will do. Here it is a web server with one JSON file, so nothing has to be built.
+
+```json title="weather/service/stations.json"
+[
+  { "station": "Madrid-Retiro", "temperatureC": 14.2, "humidity": 0.61 },
+  { "station": "Valencia-Port", "temperatureC": 19.8, "humidity": 0.72 }
+]
+```
+
+```yaml title="weather/service/docker-compose.yaml"
+name: weather
+
+services:
+  stations:
+    image: nginx:1.27-alpine
+    ports:
+      - "1510:80"
+    volumes:
+      - ./stations.json:/usr/share/nginx/html/stations.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/stations.json"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+```
+
+Port `1510` is outside the [ranges the instances take](/docs/requirements#ports). The healthcheck is what lets `up` wait until the service answers.
+
+## 2. The extension
+
+`__init__.py` defines `extension`, an instance of a subclass of `Extension`. It starts with commands and the service; the test comes at the end.
+
+```python title="weather/__init__.py"
+"""Weather stations, shared through the data space."""
+
+from pathlib import Path
+
+from eunomia.ext import ComposeService, Extension, agent, exchange, http, log
+
+from . import publish
+
+HERE = Path(__file__).resolve().parent
+
+stations = ComposeService(
+    "weather",
+    HERE / "service" / "docker-compose.yaml",
+    ports=(1510,),
+    label="weather stations",
+    start_hint="eunomia weather up",
+)
+
+
+class Weather(Extension):
+    name = "weather"
+    help = "weather stations, shared through the data space"
+
+    def commands(self, parser, actions):
+        p = actions.add_parser("up", help="start the weather service")
+        p.set_defaults(run=lambda args: stations.up() or 0)
+
+        p = actions.add_parser("down", help="remove the weather service")
+        p.set_defaults(run=lambda args: stations.down() or 0)
+
+        p = actions.add_parser("publish", help="publish the stations in an agent's catalog")
+        p.add_argument("agent")
+        p.set_defaults(run=lambda args: publish.publish(agent(args.agent)))
+
+    def services(self):
+        return [stations]
+
+    def test(self, consumer, provider, args):
+        session = exchange.Session(consumer, provider, empty_hint=f"eunomia weather publish {provider.name}")
+        dataset = exchange.pick_dataset(session.discover(), "Weather stations", is_default=False)
+        agreement = session.negotiate(exchange.offer(dataset["hasPolicy"][0], dataset["@id"]))
+        pids = session.request_transfer(agreement, "HTTP_PULL")
+        url = exchange.dataplane_url(session.start(pids), provider)
+
+        response = http.request("GET", url)
+        log.info(response.text)
+        if not response.ok:
+            raise log.fail(f"The dataplane answered HTTP {response.status}")
+
+        session.complete(pids)
+        log.ok("WEATHER TEST PASSED")
+        return 0
+
+
+extension = Weather()
+```
+
+- Each action is an argparse parser with `set_defaults(run=...)`: a function that takes the parsed arguments and returns the exit code.
+- Declaring the service in `services()` is what makes `eunomia status`, `logs weather`, `stop`, `down` and `doctor` know about it.
+- The modules import each other relatively, `from . import publish`: the extension is loaded as a package.
+- Import only from `eunomia.ext`. The rest of the CLI can change without notice.
+
+## 3. What goes into the catalog
+
+An agent offers data with five things: a dataset, a distribution for each way of getting it, the policies it is offered under, and a connector that says how the agent reaches the backend, as a template and an instance.
+
+```json title="weather/payloads/dataset.json"
+{
+  "dctTitle": "Weather stations",
+  "dctDescription": "Current temperature and humidity of every station."
+}
+```
+
+```json title="weather/payloads/distribution.json"
+{
+  "dctTitle": "Weather stations - HTTP pull",
+  "dctDescription": "On demand: every station as a JSON array.",
+  "dctFormats": "HTTP_PULL"
+}
+```
+
+```json title="weather/payloads/policy.json"
+{
+  "odrlOffer": {
+    "permission": [{ "action": "use", "constraint": [] }],
+    "obligation": [],
+    "prohibition": []
+  },
+  "entityType": "Dataset",
+  "description": "Anyone admitted to the data space may use the stations."
+}
+```
+
+The **connector template** declares how to call a kind of backend and which parameters that takes. This one needs no credentials; `authentication` also takes `BEARER_TOKEN`, `BASIC_AUTH`, `API_KEY` and OAuth2.
+
+```json title="weather/payloads/connector-template.json"
+{
+  "authentication": { "type": "NO_AUTH" },
+  "interaction": {
+    "mode": "PULL",
+    "dataAccess": {
+      "protocol": "HTTP",
+      "urlTemplate": "{{__ACCESS_URL__}}",
+      "method": "{{__ACCESS_METHODS__}}",
+      "headers": "{{__ACCESS_HEADERS__}}"
+    }
+  },
+  "parameters": [
+    { "paramType": "STRING", "name": "ACCESS_URL", "title": "URL", "required": true },
+    { "paramType": "VEC<STRING>", "name": "ACCESS_METHODS", "title": "Methods", "required": true },
+    { "paramType": "MAP<STRING,STRING>", "name": "ACCESS_HEADERS", "title": "Headers", "required": true }
+  ]
+}
+```
+
+The **connector instance** fills those in for this distribution. The agent is the one that calls the backend, from inside its container, so the URL uses `host.docker.internal` and not `127.0.0.1`. The consumer never sees it.
+
+```json title="weather/payloads/connector-instance.json"
+{
+  "metadata": { "description": "GET the stations from the weather service.", "ownerId": "WEATHER" },
+  "dryRun": false,
+  "parameters": {
+    "ACCESS_URL": "http://host.docker.internal:1510/stations.json",
+    "ACCESS_METHODS": ["GET"],
+    "ACCESS_HEADERS": { "Accept": "application/json" }
+  }
+}
+```
+
+`publish.py` creates them against the agent's API, in order, wiring the ids each step returns into the next.
+
+```python title="weather/publish.py"
+"""`eunomia weather publish <agent>`: the stations, in an agent's catalog."""
+
+import json
+from pathlib import Path
+
+from eunomia.ext import catalog, log
+
+PAYLOADS = Path(__file__).resolve().parent / "payloads"
+
+
+def payload(name):
+    return json.loads((PAYLOADS / f"{name}.json").read_text())
+
+
+def publish(agent):
+    cat = catalog.Catalog(agent.url)
+    title = payload("dataset")["dctTitle"]
+    if any(d.get("dctTitle") == title for d in cat.datasets()):
+        log.ok(f"Already in the catalog of {agent.name}")
+        return 0
+
+    dataset = payload("dataset")
+    dataset["catalogId"] = cat.main_catalog_id()
+    dataset_id = cat.post("/catalog-agent/datasets", dataset)["id"]
+
+    distribution = payload("distribution")
+    distribution["dcatAccessService"] = cat.main_data_service_id()
+    distribution["datasetId"] = dataset_id
+    distribution_id = cat.post("/catalog-agent/distributions", distribution)["id"]
+
+    policy = payload("policy")
+    policy["entityId"] = dataset_id
+    cat.post("/catalog-agent/odrl-policies", policy)
+
+    template = cat.template(payload("connector-template"))
+    connector = payload("connector-instance")
+    connector["templateName"] = template["name"]
+    connector["templateVersion"] = template["version"]
+    connector["distributionId"] = distribution_id
+    cat.post("/connector/instances", connector)
+
+    log.ok(f"The stations are in the catalog of {agent.name}")
+    return 0
+```
+
+## 4. Run it
+
+Tell `eunomia` where the extension is, in the shell or in `.env`:
+
+```bash
+export EUNOMIA_EXTENSIONS=$PWD/weather
+./eunomia weather --help
+```
+
+The commands are there, next to `test`, which the core adds because the extension has a `test` point. Start the backend and publish it from `alice`:
+
+```bash
+./eunomia weather up
+./eunomia weather publish alice
+./eunomia catalog show alice
+```
+
+```text
+urn:dataset:061d2174-…  Weather stations
+    HTTP_PULL  urn:distribution:e7759597-…  -> urn:connector-instance:e94dbf88-…
+```
+
+And now the whole exchange. `bob` logs in to `alice` over GNAP, reads the catalog, negotiates the eight states of the contract, starts a transfer and pulls the stations through the data plane of `alice`:
+
+```bash
+./eunomia weather test --consumer bob --provider alice
+```
+
+```text
+Step 3 · Contract negotiation
+  8/8 FINALIZED  agreement=urn:agreement:137110ce-…
+  STARTED    (provider)
+[
+  { "station": "Madrid-Retiro", "temperatureC": 14.2, "humidity": 0.61 },
+  { "station": "Valencia-Port", "temperatureC": 19.8, "humidity": 0.72 }
+]
+  COMPLETED  (provider)
+WEATHER TEST PASSED
+```
+
+Every agent is the same, so `./eunomia weather publish bob` and `--consumer alice --provider bob` run it the other way round. `./eunomia status` lists the service, and `./eunomia weather down` removes it.
+
+## Where to go next
+
+- **Keep it.** Put the directory in a repository of yours and set `EUNOMIA_EXTENSIONS=/path/to/weather` in `.env`. Nothing of it enters this repository.
+- **A real backend.** Stream events, authenticate against it, add notebooks: [Sharing your own data](/docs/guides/extending).
+- **Every extension point and helper.** The reference is in [Extensions](/docs/cli/extensions), and `extensions/demo/` uses them all.
+
+## When it does not work
+
+| What you see | What to check |
+| --- | --- |
+| `invalid choice: 'weather'` | `EUNOMIA_EXTENSIONS` must reach this shell: `export` it, or put it in `.env` at the root of the repository |
+| The CLI stops at start, naming the extension | Its name clashes with another extension or a core command such as `status`. Rename it |
+| The catalog is empty for the consumer | Publish first, in the agent that plays the provider |
+| The dataplane answers an error | The connector URL is what the agent calls: `host.docker.internal`, not `127.0.0.1`. Look at `./eunomia logs alice` |

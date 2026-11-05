@@ -28,11 +28,11 @@ On Windows, use `.\eunomia.cmd` instead of `./eunomia`. No Docker at hand? Open 
 
 `./eunomia ls` lists the instances, their URLs and their consoles (agents: `eunomia` / `eunomia`). `./eunomia notebook alice bob` runs an exchange one call per cell, in Jupyter, with whatever alice publishes. Any agent can play either role: `./eunomia demo publish bob` and `./eunomia demo test --consumer alice --provider bob` run it the other way round.
 
-The demo is an extension (`extensions/demo/`): what agents share, and how you test it, comes from extensions. Your own project is another one, kept in its own repository and loaded with `EUNOMIA_EXTENSIONS`; see [Extensions](https://eunomiaupm.github.io/eunomia-deployment/docs/cli/extensions).
+The demo is an extension (`extensions/demo/`): what agents share, and how you test it, comes from extensions. Your own project is another one, kept in its own repository and loaded with `EUNOMIA_EXTENSIONS`; [Build an extension](https://eunomiaupm.github.io/eunomia-deployment/docs/guides/build-an-extension) goes from an empty directory to data flowing.
 
 ## Documentation
 
-**<https://eunomiaupm.github.io/eunomia-deployment>**: quickstart, architecture, the components (DS-Agent, Heimdall, Fafnir, Ymir), standalone and production deployment, the `eunomia` CLI and the API reference.
+**<https://eunomiaupm.github.io/eunomia-deployment>**: quickstart, architecture, the components (DS-Agent, Heimdall, Fafnir, Ymir), standalone and production deployment, the `eunomia` CLI, extensions and the API reference.
 
 The site is built from [`docs/`](docs/) with [Fumadocs](https://fumadocs.dev); the pages are MDX files under [`docs/content/docs/`](docs/content/docs/). To run it locally:
 

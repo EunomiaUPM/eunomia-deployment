@@ -5,7 +5,7 @@ description: "Your backend, its connectors and catalog entry, and a test, packag
 
 The demo factory is one backend an agent can share. Your own data takes the same pieces: a service that holds it, connectors that tell the agent how to reach it, a catalog entry that offers it, and a test that proves it flows. Packaged as an [extension](/docs/cli/extensions), they get commands of their own (`eunomia <yours> …`) without touching this repository.
 
-Start from a copy of `extensions/demo/` in your own repository, rename it, and point `EUNOMIA_EXTENSIONS` at it:
+New to extensions? [Build an extension](/docs/guides/build-an-extension) makes a small one from scratch first. For a larger one, start from a copy of `extensions/demo/` in your own repository, rename it, and point `EUNOMIA_EXTENSIONS` at it:
 
 ```bash
 cp -r extensions/demo ~/my-project/weather
