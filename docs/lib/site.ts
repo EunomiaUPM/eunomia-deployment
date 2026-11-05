@@ -13,10 +13,10 @@ export function asset(path: string): string {
 
 export const site = {
   name: 'EUNOMIA',
-  title: 'EUNOMIA: open-source data spaces',
+  title: 'EUNOMIA Deployment: run a data space',
   tagline: 'A secure data space.',
   description:
-    'EUNOMIA drives a secure data economy in Europe, supporting Gaia-X ISBL and DSBA. We develop open-source solutions and open standards for secure and trusted data sharing.',
+    'How to deploy and operate EUNOMIA data spaces: authorities and agents on one machine or one per server, and extensions for the data they share.',
   url: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://eunomiaupm.github.io/eunomia-deployment',
   website: 'https://eunomia.dit.upm.es',
   github: 'https://github.com/EunomiaUPM',
@@ -29,9 +29,6 @@ export const site = {
     'Av. Complutense, 30',
     '28040 Madrid, Spain',
   ],
-  group: 'GING, Next Generation Internet Group · Department of Telematic Engineering (DIT), Universidad Politécnica de Madrid',
-  funding:
-    'Funded by INCIBE through the call “Solutions for sovereignty, trust and security in data spaces” (ETD202300196), co-financed by the European Union Recovery and Resilience Facility.',
 };
 
 export const components = [
@@ -84,21 +81,4 @@ export const standards = [
   'Rust',
   'PostgreSQL',
   'Docker',
-];
-
-export const team = [
-  { name: 'Joaquín Salvachúa', role: 'Principal Investigator' },
-  { name: 'Pedro Reviriego', role: 'Professor' },
-  { name: 'Gabriel Huecas', role: 'Professor' },
-  { name: 'Santiago Pavón', role: 'Professor' },
-  { name: 'Enrique Barra', role: 'Associate Professor' },
-  { name: 'Álvaro Alonso', role: 'Associate Professor' },
-  { name: 'Aldo Gordillo', role: 'Associate Professor' },
-  { name: 'Jose Andrés Muñoz', role: 'Assistant Professor' },
-  { name: 'Alejandro Pozo', role: 'Assistant Professor' },
-  { name: 'Javier Conde', role: 'Assistant Professor' },
-  { name: 'Carlos Aparicio', role: 'PhD candidate' },
-  { name: 'Carlos Arriaga', role: 'PhD candidate' },
-  { name: 'Rodrigo Menéndez', role: 'Intern' },
-  { name: 'Irene Plaza', role: 'Intern' },
 ];

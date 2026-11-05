@@ -117,13 +117,6 @@ html > body[data-scroll-locked] {
   background-image: linear-gradient(100deg, var(--color-brand-sky) 0%, var(--color-brand-violet) 50%, var(--color-brand-magenta) 100%);
 }
 
-/* A dotted field that fades towards the edges */
-@utility bg-dots {
-  background-image: radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--color-fd-foreground) 18%, transparent) 1px, transparent 0);
-  background-size: 22px 22px;
-  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
-}
-
 /* A faint engineering grid */
 @utility bg-grid {
   background-image:

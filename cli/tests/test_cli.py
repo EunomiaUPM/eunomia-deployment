@@ -287,32 +287,16 @@ class Repo(unittest.TestCase):
         offenders = [rel for rel, text in _tracked_text_files() if rel not in allowed and pattern.search(text)]
         self.assertEqual(offenders, [])
 
-    def test_hackathon_only_in_its_landing(self):
+    def test_no_event_pages(self):
+        """This site is technical: events live on the project website."""
         pattern = re.compile(r"hackat|hackath", re.IGNORECASE)
-        allowed = (
-            "docs/lib/hackathon.ts",
-            "docs/components/hackathon/",
-            "docs/app/(home)/hackathon/",
-            # The home page shows the event banner, the one link towards it.
-            "docs/app/(home)/page.tsx",
-            # The site's maintainer notes say where those files are.
-            "docs/README.md",
-            "PLAN.md",
-            "cli/tests/test_cli.py",
-        )
         offenders = [
-            rel for rel, text in _tracked_text_files() if not rel.startswith(allowed) and pattern.search(text + rel)
+            rel for rel, text in _tracked_text_files() if rel not in {"PLAN.md", "cli/tests/test_cli.py"} and pattern.search(text + rel)
         ]
         self.assertEqual(offenders, [])
 
-    def test_docs_never_mention_the_event(self):
-        """The documentation is universal: the event lives on its own page."""
-        content = ROOT / "docs" / "content"
-        offenders = [
-            str(p.relative_to(ROOT)) for p in content.rglob("*") if p.is_file() and re.search(r"hackat", p.read_text(), re.IGNORECASE)
-        ]
-        self.assertEqual(offenders, [])
-
+    # argparse words and wraps its help differently outside these versions.
+    @unittest.skipUnless((3, 10) <= sys.version_info[:2] < (3, 13), "the reference is generated with Python 3.10 to 3.12")
     def test_cli_reference_is_up_to_date(self):
         sys.path.insert(0, str(ROOT / "cli" / "tools"))
         import gen_cli_docs
